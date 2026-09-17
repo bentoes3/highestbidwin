@@ -10,3 +10,93 @@
 @media(max-width:1050px){.team-tag{display:block;width:100%;text-align:center}.team-head{min-height:112px;align-content:center}}
 
 .player-monogram{height:133px;min-height:133px;width:100%;margin:38px 0 0;display:grid;place-items:center;font:900 92px 'Barlow Condensed',Impact,sans-serif;letter-spacing:-3px;color:#243515}.hero-monogram{height:190px;width:100%;margin-top:12px;display:grid;place-items:center;font:900 88px 'Barlow Condensed',Impact,sans-serif;letter-spacing:-3px}.hero-card>span{position:static;align-self:flex-start;font-size:30px}.hero-card>span small{display:inline;margin-left:6px}.hero-monogram{height:150px;margin-top:0}.hero-card>strong{z-index:1}@media(max-width:1050px){.hero-monogram{height:125px;font-size:76px}}@media(max-width:760px){.hero-monogram{height:110px}.hero-card>strong{font-size:25px}}
+/* Keep the active game compact without clipping controls or long player names. */
+body:has(#game:not([hidden])) header{height:58px}
+body:has(#game:not([hidden])) main{padding-top:12px;padding-bottom:12px}
+#game .heading{margin-bottom:10px}
+#game h1{font-size:38px}
+#game .heading .eyebrow{display:none}
+#game .round-bar{padding-bottom:10px;margin-bottom:10px}
+#game .auction{padding:12px;min-width:0}
+#game .auction #card-zone{height:300px;min-height:300px;max-height:300px;padding:8px 0}
+#game .player-card{width:205px;height:280px;min-height:280px;max-height:280px;padding:12px}
+#game .player-card .card-top{top:10px;left:12px;right:12px}
+#game .card-rating{font-size:34px}
+#game .player-monogram{height:76px;min-height:76px;margin-top:28px;font-size:64px}
+#game .player-card .card-name{height:40px;min-height:40px;font-size:22px}
+#game .player-card .card-meta{height:24px;min-height:24px;font-size:11px}
+#game .player-card .card-stats{height:60px;min-height:60px}
+#game .player-card .card-stats b{font-size:19px}
+#game .card-source{font-size:10px;margin-top:3px}
+#game #auction-controls{height:150px;min-height:150px;max-height:150px}
+#game .announcement{height:44px;min-height:44px;max-height:44px;margin:8px 0 0;font-size:12px}
+#game .team-head{min-height:70px;padding:12px}
+#game .budget-area{min-height:72px;padding:10px 14px}
+#game .budget{font-size:36px}
+#game .roster-row{min-height:52px}
+#game .team-total{padding:12px}
+#game .bottom-strip{padding:10px 0}
+body:has(#game:not([hidden])) footer{display:none}
+#game .toss-coin{width:145px;height:145px;margin-bottom:16px}
+#game .toss-area h2{font-size:28px}
+@media(max-width:760px){
+ body:has(#game:not([hidden])) header{height:52px}
+ body:has(#game:not([hidden])) main{padding:8px 10px}
+ #game h1{font-size:28px}#game .heading{margin-bottom:6px}
+ #game .round-bar{padding-bottom:6px;margin-bottom:6px;font-size:11px}
+ #game .arena{gap:8px}
+ #game .auction{padding:8px 12px}
+ #game .auction #card-zone{height:258px;min-height:258px;max-height:258px}
+ #game .player-card{height:240px;min-height:240px;max-height:240px;width:190px;padding:10px}
+ #game .player-monogram{height:48px;min-height:48px;margin-top:28px;font-size:48px}
+ #game .player-card .card-name{font-size:20px;height:36px;min-height:36px}
+ #game .card-rating{font-size:28px}
+ #game .player-card .card-stats{height:55px;min-height:55px}
+ #game #auction-controls{height:132px;min-height:132px;max-height:132px}
+ #game .bid-top{margin-bottom:4px}#game .bid-top strong{font-size:25px}
+ #game .auction[data-player] .turn-label{font-size:16px}
+ #game .bid-buttons button{min-height:40px;padding:9px}
+ #game .control-hint{font-size:11px;min-height:28px;margin-top:4px}
+ #game .announcement{height:32px;min-height:32px;max-height:32px;margin-top:4px}
+ #game .team-head{min-height:42px;padding:6px;gap:5px;flex-wrap:nowrap}
+ #game .team-head h2{font-size:17px}#game .team-head small,#game .manager-number,#game .team-tag{display:none}
+ #game .budget-area{padding:5px 8px;min-height:36px}
+ #game .budget-area>div{display:flex;justify-content:space-between;align-items:center;width:100%}
+ #game .budget{font-size:23px}#game .budget small{display:none}
+ #game .tiny-label{font-size:9px}
+ #game .roster-heading{display:none}
+ #game .roster{margin:0 5px}
+ #game .roster-row{min-height:26px;padding:4px 2px;gap:4px}
+ #game .roster-name{font-size:11px;line-height:1.2}
+ #game .roster-name small{display:none}
+ #game .slot-label{font-size:10px;width:23px}
+ #game .roster-score{font-size:16px}
+ #game .team-total{padding:5px 8px;font-size:9px}
+ #game .team-total strong{font-size:22px}
+ #game .bottom-strip{display:none}
+}
+@media(min-width:761px) and (max-height:750px){
+ #game .auction #card-zone{height:265px;min-height:265px;max-height:265px}
+ #game .player-card{transform:scale(.88);margin:-16px 0}
+ #game .auction{padding:8px 12px}
+ #game .roster-row{min-height:43px}
+ #game .bottom-strip{display:none}
+}
+#game .bottom-strip{display:none}
+#game .card-source{display:none}
+@media(max-width:760px){
+ #game .round-bar{padding-top:6px}
+ #game .auction #card-zone{height:238px;min-height:238px;max-height:238px}
+ #game .player-card{height:220px;min-height:220px;max-height:220px}
+ #game .player-monogram{height:40px;min-height:40px;font-size:40px}
+ #game .player-card .card-name{height:32px;min-height:32px;font-size:19px}
+ #game .player-card .card-meta{height:20px;min-height:20px;font-size:10px}
+ #game .player-card .card-stats{height:52px;min-height:52px}
+ #game .player-card .card-stats b{font-size:17px}
+ #game .card-stats span{font-size:10px}
+ #game .roster{gap:2px}
+ #game .roster-row{padding:2px;min-height:26px}
+ #game .team-total{height:27px;padding:3px 6px}
+ #game .team-total>span{max-width:none;font-size:8px}
+ #game .announcement{height:24px;min-height:24px;max-height:24px;font-size:11px}
+}
