@@ -1,0 +1,28 @@
+/* Sport-level tokens. The original Football stylesheet is shared, never recolored. */
+:root:has(body[data-sport="basketball"]){--primary:#ffad66;--secondary:#c85045;--accent:#ffd5a7;--background:#191312;--surface:#2c1d1b;--text:#fff0dd;--lime:var(--primary);--blue:#ffd5a7;--orange:#ef857d;--bg:var(--background);--panel:var(--surface);--line:#543733;--muted:#bda99d;color:var(--text);color-scheme:dark}
+body[data-sport="basketball"]{background:radial-gradient(ellipse at 50% 30%,#76382733,transparent 65%),var(--background)}
+[data-sport="basketball"] .home-hero{background:radial-gradient(ellipse at 85% 50%,#b3522520,transparent 55%)}
+[data-sport="basketball"] .mode-card{background:var(--surface);color:var(--text)}
+[data-sport="basketball"] .mode-card.selected{background:#44281e;border-color:var(--primary);box-shadow:inset 0 0 0 1px #ffad6622}
+[data-sport="basketball"] .mode-card p,[data-sport="basketball"] .home-copy>p,[data-sport="basketball"] .control-hint,[data-sport="basketball"] .announcement{color:var(--muted)}
+[data-sport="basketball"] .auction{background:linear-gradient(160deg,#38221c,#251a18)}
+[data-sport="basketball"] .player-card,[data-sport="basketball"] .hero-card{background:var(--primary);border-color:#ffe0b5;color:#311b15}
+[data-sport="basketball"] .player-monogram,[data-sport="basketball"] .hero-monogram{color:#52291c}
+[data-sport="basketball"] .hero-back{background:var(--accent)}
+[data-sport="basketball"] .primary{color:#311b15}
+[data-sport="basketball"] .roster-row{background:#1a111180;border-color:var(--line)}
+[data-sport="basketball"] .slot-label{color:var(--accent)}
+[data-sport="basketball"] .result-panel{background:var(--surface);border-color:#a96840}
+[data-sport="basketball"] dialog{background:var(--surface);border-color:#8b5d46;color:var(--text)}
+[data-sport="basketball"] dialog p,[data-sport="basketball"] dialog li{color:#d5beb0}
+[data-sport="basketball"] .toss-coin{background:#5d3221;box-shadow:inset 0 0 0 9px #2c1d1b,inset 0 0 0 10px #a56d40}
+[data-sport="basketball"] .toss-winner .toss-coin{background:var(--active);box-shadow:none}
+[data-sport="basketball"] .hero-cards:before{content:'';position:absolute;border:1px solid #ffad6630;border-radius:50%;width:310px;height:310px;left:8%;top:12%;pointer-events:none}
+[data-sport="basketball"] .test-rating-label{font-size:10px;letter-spacing:1px;color:var(--accent);border-left:2px solid var(--primary);padding-left:10px}
+[data-sport="basketball"] .player-card .card-meta{font-size:10px}
+/* The compact phone header uses the same direct navigation for both editions. */
+.sport-switch{text-decoration:none;white-space:nowrap}
+@media(max-width:760px){.sport-switch{font-size:10px}.header-right{gap:4px}.header-right .quiet{padding:8px 5px;font-size:11px}}
+[data-sport="basketball"] .player-card{box-shadow:0 15px 60px #0004,inset 0 0 0 5px var(--primary),inset 0 0 0 6px #65311d55}
+[data-sport="basketball"] .player-card:after{border-color:#65311d44}
+[data-sport="basketball"] .hero-sticker,[data-sport="basketball"] .home-facts,[data-sport="basketball"] .mode-kicker,[data-sport="basketball"] .mode-meta,[data-sport="basketball"] .home-rules{color:var(--muted)}
