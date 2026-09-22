@@ -24,6 +24,7 @@ for(const sport of ['football','basketball']){
   }
   run(`startGame('${mode}')`);await run('toss()');await run('spin()');
   for(const bad of ['bid(1-state.turn)','bid(state.turn,21)','bid(state.turn,1.5)','bid(state.turn,0)'])assert.throws(()=>run(bad));
+  assert(!/card-rating|card-stats|TEST RATING|CUSTOM LOCAL RATING/.test(node('card-zone').innerHTML));assert(node('card-zone').innerHTML.includes(run('state.current.name')));
   const first=run('state.turn');run('bid(state.turn,20)');run('pass(state.turn)');assert.equal(run(`state.teams[${first}].money`),0);assert.equal(run('state.phase'),'sold');
   await run('spin()');assert.equal(run('state.turn'),1-first);run('bid(state.turn,20)');assert.equal(run('state.phase'),'free-ready');
   for(let i=0;i<8;i++){const before=run('state.teams.reduce((n,t)=>n+t.squad.length,0)');await run('spin()');assert.equal(run('state.teams.reduce((n,t)=>n+t.squad.length,0)'),before+1);}
@@ -51,5 +52,5 @@ for(const sport of ['football','basketball']){
   console.log('PASS basketball: 100 + 100 records, exact uniform draw intervals, every free candidate reachable regardless of missing slots, position penalties and ties.');
  }
 }
-console.log('PASS Football data, engine and original stylesheet match the pre-task SHA-256 baseline.');
+console.log('PASS Football player data matches the original SHA-256 baseline.');
 })().catch(e=>{console.error(e);process.exitCode=1});
