@@ -29,3 +29,20 @@
 .court-key{top:50%;height:40px;transform:translateY(-50%)}
 .court-key:after{width:40px;height:40px;left:64px}
 .sport-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;line-height:1.5}.sport-meta span{margin:0 4px}
+
+/* Let the artwork grow into the screen, with room for the tilted lettering. */
+.sport-art{container-type:size}
+.art-word{inset:auto;right:8%;top:50%;font-size:clamp(40px,62cqh,180px);letter-spacing:-.035em;opacity:.42;transform:translateY(-50%) rotate(-9deg)}
+@media(min-width:761px){
+ .sport-selector main{max-width:1500px;min-height:calc(100svh - 66px);display:flex;flex-direction:column;padding-bottom:18px}
+ .sport-options{flex:1;min-height:0}
+ .sport-choice{display:flex;flex-direction:column}
+ .sport-art{flex:1;min-height:80px;height:auto}
+ .choice-copy{flex-shrink:0}
+ .selector-intro h1{font-size:clamp(40px,6.2vh,70px)}
+ .choice-copy h2{font-size:clamp(28px,4vh,42px)}
+ .pitch-center{width:clamp(48px,12vh,120px);height:clamp(48px,12vh,120px);left:36%;transform:translate(-50%,-50%)}
+}
+@media(min-width:761px) and (max-height:700px){.sport-selector main{min-height:calc(100svh - 56px)}.selector-intro h1{font-size:40px}.choice-copy h2{font-size:28px}}
+@media(max-width:760px){.sport-art{height:96px}.art-word{font-size:60px}}
+.court-art:before{top:50%;transform:translateY(-50%)}
