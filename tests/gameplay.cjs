@@ -1,13 +1,25 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const baseline=JSON.parse(fs.readFileSync('tests/football-baseline.json','utf8'));
 for(const [file,hash] of Object.entries(baseline))assert.equal(crypto.createHash('sha256').update(fs.readFileSync('dist/'+file)).digest('hex'),hash,`Football changed: ${file}`);
-function engine(sport){
+function engine(sport,manual=false){
+ const timers=[];
  const nodes=new Map();function node(id){if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',hidden:false,classList:{add(){},remove(){},toggle(){}},setAttribute(){},scrollIntoView(){},showModal(){},close(){}});return nodes.get(id);}
- const sb={document:{getElementById:node,querySelector:node,querySelectorAll:()=>[]},window:{matchMedia:()=>({matches:true}),scrollTo(){}},setTimeout:f=>setTimeout(f,0),clearTimeout,setInterval,clearInterval,console};vm.createContext(sb);
+ const sb={document:{getElementById:node,querySelector:node,querySelectorAll:()=>[]},window:{matchMedia:()=>({matches:!manual}),scrollTo(){}},setTimeout:manual?(f=>{timers.push(f);return timers.length;}):(f=>setTimeout(f,0)),clearTimeout,setInterval,clearInterval,console};vm.createContext(sb);
  for(const f of ['players.js','game.js'])vm.runInContext(fs.readFileSync(`dist/${sport==='basketball'?'basketball/':''}${f}`,'utf8'),sb);
- return {run:s=>vm.runInContext(s,sb),node};
+ return {run:s=>vm.runInContext(s,sb),node,timers};
 }
 (async()=>{
+for(const sport of ['football','basketball']){
+ const fx=engine(sport,true);
+ const prepare=()=>fx.run("startGame('current');state.teams.forEach((t,i)=>t.squad=playerPool().slice(i*5,i*5+5).map(player=>({player,price:1})));state.phase='done';render()");
+ prepare();fx.run('showResults(false)');
+ assert.equal(fx.run('state.revealed'),false);assert(fx.node('results').innerHTML.includes('reveal-count'));assert(!fx.node('results').innerHTML.includes('final-score'));
+ const count=fx.timers.length;fx.run('showResults(false)');assert.equal(fx.timers.length,count);
+ fx.timers.slice(-3).forEach(f=>f());assert.equal(fx.run('state.revealed'),true);assert(fx.node('results').innerHTML.includes('winner-heading'));
+ prepare();fx.run('showResults(false)');const stale=fx.timers.slice(-3);fx.run('reset()');stale.forEach(f=>f());assert.equal(fx.node('results').hidden,true);assert.equal(fx.node('results').innerHTML,'');
+ prepare();fx.run('showResults(false)');fx.node('skip-reveal').onclick();assert.equal(fx.run('state.revealed'),true);
+ console.log(`PASS ${sport}: concealed scores, staged reveal, duplicate-click guard, timer cancellation and skip animation.`);
+}
 for(const sport of ['football','basketball']){
  const {run,node}=engine(sport);
  for(const mode of ['current','prime']){
@@ -28,8 +40,8 @@ for(const sport of ['football','basketball']){
   const first=run('state.turn');run('bid(state.turn,20)');run('pass(state.turn)');assert.equal(run(`state.teams[${first}].money`),0);assert.equal(run('state.phase'),'sold');
   await run('spin()');assert.equal(run('state.turn'),1-first);run('bid(state.turn,20)');assert.equal(run('state.phase'),'free-ready');
   for(let i=0;i<8;i++){const before=run('state.teams.reduce((n,t)=>n+t.squad.length,0)');await run('spin()');assert.equal(run('state.teams.reduce((n,t)=>n+t.squad.length,0)'),before+1);}
-  assert.equal(run('state.phase'),'done');assert(node('results').innerHTML.includes('Adjusted team rating'));
-  const totals=run('state.teams.map(t=>bestLineup(t.squad).total)');const result=run('showResults(false)');assert.equal(result.winner,totals[0]===totals[1]?'draw':`Player ${totals[0]>totals[1]?1:2}`);
+  assert.equal(run('state.phase'),'done');assert.equal(node('results').hidden,true);assert(!node('team-0').innerHTML.includes('roster-score'));assert(!node('team-0').innerHTML.includes('TEAM RATING'));
+  const totals=run('state.teams.map(t=>bestLineup(t.squad).total)');const result=run('showResults(false)');assert(node('results').innerHTML.includes('Adjusted team rating'));assert(node('team-0').innerHTML.includes('roster-score'));assert.equal(result.winner,totals[0]===totals[1]?'draw':`Player ${totals[0]>totals[1]?1:2}`);
   run('reset()');assert(run('state.teams.every(t=>t.money===20&&t.squad.length===0&&t.soloSkips===0)'));assert.equal(run('state.phase'),'toss-ready');
  }
  // Completed games retain accounting and unique signings.

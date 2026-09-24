@@ -191,3 +191,32 @@ footer{justify-content:center;margin:18px 0 0;font-size:10px}
  .hero-card{width:130px;height:157px}.hero-monogram{font-size:52px}
  .home-copy h1{font-size:46px}.mode-card{padding:12px 16px}
 }
+
+/* Keep the auction a mystery; the final verdict gets its own stage. */
+.rating-sealed{width:100%;text-align:center;font-size:10px;letter-spacing:1px;color:var(--muted);line-height:1.4}
+.finale{position:relative;isolation:isolate;overflow:hidden;min-height:360px;padding:36px 24px;border-color:var(--winner-color,var(--lime));background:radial-gradient(ellipse at 50% 0%,#d4ff4814,transparent 65%),var(--panel)}
+.finale h2{position:relative;font-size:clamp(36px,5vw,68px);line-height:1.1;margin:14px 0;color:var(--winner-color,var(--lime));outline:none}
+.finale .eyebrow{color:var(--winner-color,var(--lime))}
+.finale .result-note{font-size:16px;min-height:24px}
+.reveal-count{font:900 120px/1 'Barlow Condensed',Impact,sans-serif;color:var(--lime);margin:24px auto;animation:count-pulse .8s ease-in-out 3}
+.suspense:before{content:'';position:absolute;z-index:-1;inset:0;background:conic-gradient(from 0deg,transparent,#d4ff4818,transparent,#d4ff4818,transparent);animation:stage-sweep 3s linear infinite}
+.finale .result-scores{max-width:720px;position:relative;margin:28px auto;gap:24px}
+.final-score{padding:20px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);animation:score-arrive .6s ease both}
+.final-score:last-child{animation-delay:.12s}
+.final-score.champion{border-color:var(--team-color);box-shadow:0 0 30px color-mix(in srgb,var(--team-color) 20%,transparent)}
+.finale .final-score strong{color:var(--team-color);font-size:clamp(48px,7vw,88px)}
+.finale .final-score small{font-size:12px}
+.winner-badge{display:block;margin-top:16px;color:var(--team-color);font-size:11px;letter-spacing:2px;font-weight:800}
+.final-vs{color:var(--muted);font-weight:700;font-size:12px}
+.finished h2{animation:verdict-arrive .65s cubic-bezier(.2,.8,.2,1) both}
+.finale #view-lineups{display:block;margin:14px auto 0}
+.confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:-1}
+.confetti i{position:absolute;top:-20px;left:var(--x);width:8px;height:16px;background:var(--winner-color);opacity:0;animation:confetti-fall 2.8s ease-out var(--delay) both}
+.confetti i:nth-child(3n){background:var(--lime)}.confetti i:nth-child(3n+1){background:#fff}
+@keyframes count-pulse{0%{transform:scale(.8);opacity:.4}30%{transform:scale(1.06);opacity:1}100%{transform:scale(.92);opacity:.6}}
+@keyframes stage-sweep{to{transform:rotate(360deg)}}
+@keyframes verdict-arrive{from{opacity:0;transform:translateY(16px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes score-arrive{from{opacity:0;transform:translateY(25px) rotateX(35deg)}to{opacity:1;transform:none}}
+@keyframes confetti-fall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:.85}100%{opacity:0;transform:translate(var(--drift),550px) rotate(var(--spin))}}
+@media(max-width:760px){.finale{padding:26px 14px;min-height:340px}.finale .result-scores{gap:8px}.final-score{padding:18px 6px}.finale .final-score small{font-size:10px}.rating-sealed{font-size:8px}.reveal-count{font-size:90px}}
+@media(prefers-reduced-motion:reduce){.confetti,.suspense:before{display:none}.finale *{animation:none!important}}
