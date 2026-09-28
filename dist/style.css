@@ -249,3 +249,28 @@ footer{justify-content:center;margin:18px 0 0;font-size:10px}
 @keyframes confetti-fall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:.85}100%{opacity:0;transform:translate(var(--drift),550px) rotate(var(--spin))}}
 @media(max-width:760px){.finale{padding:26px 14px;min-height:340px}.finale .result-scores{gap:8px}.final-score{padding:18px 6px}.finale .final-score small{font-size:10px}.rating-sealed{font-size:8px}.reveal-count{font-size:90px}}
 @media(prefers-reduced-motion:reduce){.confetti,.suspense:before{display:none}.finale *{animation:none!important}}
+
+/* A single home destination and one help action keep the header easy to scan. */
+header .brand{text-decoration:none}
+header .brand:hover .brand-mark{filter:brightness(1.16)}
+header .header-right{gap:0}
+.start-row{justify-content:flex-end}
+.rules-ratings{border-top:1px solid var(--line);margin:24px 0 22px;padding-top:16px}
+.rules-ratings summary{font:800 28px 'Barlow Condensed',Impact,sans-serif;cursor:pointer}
+.rules-ratings summary::marker{color:var(--lime)}
+.rules-ratings p{margin:10px 0}
+
+/* Reserve exactly one control and message track throughout each spin. */
+#game #auction-controls{height:200px;min-height:200px;max-height:200px;overflow:hidden}
+#game .announcement{height:48px;min-height:48px;max-height:48px;overflow:auto}
+#game .auction #card-zone{overflow:hidden}
+@media(max-width:760px){
+ #game #auction-controls,#game .auction:is([data-phase="toss-ready"],[data-phase="ready"],[data-phase="sold"],[data-phase="unsold"],[data-phase="done"]) #auction-controls{height:110px;min-height:110px;max-height:110px}
+ #game .auction:is([data-phase="free-ready"],[data-phase="free-spinning"]) #auction-controls{height:134px;min-height:134px;max-height:134px}
+ #game #auction-controls:has(.bid-top){display:grid;grid-template-areas:'bid bid' 'actions allin';grid-template-columns:minmax(0,1fr) auto;grid-template-rows:42px 42px;align-content:start;gap:5px;padding-top:4px}
+ #game .bid-top{grid-area:bid;align-items:center;margin:0}
+ #game .bid-buttons{grid-area:actions;min-width:0}
+ #game .all-in{grid-area:allin;align-self:center;font-size:11px;padding:4px 5px;margin:0;white-space:nowrap}
+ #game #auction-controls:has(.bid-top) .control-hint{display:none}
+ #game .announcement{height:36px;min-height:36px;max-height:36px}
+}
