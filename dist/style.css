@@ -172,6 +172,35 @@ footer{justify-content:center;margin:18px 0 0;font-size:10px}
 /* Center the fixed-size card inside its track even when scaled on a laptop. */
 #game .auction #card-zone{grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr)}
 
+/* A quiet spotlight gives the auction a stage without changing its geometry. */
+#game .auction{isolation:isolate;transition:border-color .25s,box-shadow .25s}
+#game .auction::before{content:'';position:absolute;z-index:-1;width:min(90%,390px);aspect-ratio:1;top:35px;left:50%;translate:-50% 0;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--active,var(--lime)) 19%,transparent),transparent 68%);pointer-events:none;opacity:.65;transition:opacity .35s,background .35s}
+#game .auction[data-phase="spinning"]::before,#game .auction[data-phase="free-spinning"]::before{opacity:1;animation:auction-glow 1.8s ease-in-out infinite}
+#game .auction[data-phase="bidding"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--active,var(--lime)) 28%,transparent)}
+#game .auction .pill{display:inline-flex;align-items:center;gap:7px}
+#game .auction[data-phase="bidding"] .pill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--active,var(--lime));box-shadow:0 0 0 3px color-mix(in srgb,var(--active,var(--lime)) 17%,transparent);animation:live-pulse 2s ease-in-out infinite}
+#game .auction[data-phase="sold"] .identity-card::before{content:'SIGNED';position:absolute;z-index:3;top:47%;left:50%;width:132px;padding:3px 0;border:3px solid #1d3611;color:#1d3611;background:color-mix(in srgb,var(--lime) 88%,transparent);font:900 27px/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:2px;transform:translate(-50%,-50%) rotate(-13deg);animation:sign-stamp .45s cubic-bezier(.17,1.6,.5,1) both;pointer-events:none}
+#game .team.active-turn .manager-number{animation:turn-cue .55s ease-out both}
+#game .progress-track span.filled{box-shadow:0 0 8px color-mix(in srgb,var(--lime) 25%,transparent)}
+@keyframes auction-glow{50%{scale:1.08;opacity:.65}}
+@keyframes live-pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--active,var(--lime)) 8%,transparent)}}
+@keyframes sign-stamp{from{opacity:0;scale:1.8}to{opacity:1;scale:1}}
+@keyframes turn-cue{from{filter:brightness(2);scale:1.15}to{filter:brightness(1);scale:1}}
+@media(hover:hover) and (pointer:fine){
+ .mode-card{transition:transform .22s,border-color .22s,background .22s,box-shadow .22s}
+ .mode-card:hover{transform:translateY(-3px);border-color:var(--lime);box-shadow:0 12px 25px #0003}
+ .mode-card:hover .choice-circle{transform:rotate(18deg) scale(1.1)}
+ .choice-circle{transition:transform .22s}
+ .hero-card{transition:rotate .35s,box-shadow .35s}
+ .hero-cards:hover .hero-back{rotate:-4deg;box-shadow:0 26px 48px #0007}
+ .hero-cards:hover .hero-front{rotate:4deg;box-shadow:0 26px 48px #0007}
+ #game .primary:not(:disabled):hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--active,var(--lime)) 22%,transparent)}
+}
+@media(prefers-reduced-motion:reduce){#game .auction::before,#game .auction{transition:none}}
+@media(max-width:760px){
+ #game .auction:is([data-phase="toss-ready"],[data-phase="ready"],[data-phase="sold"],[data-phase="unsold"],[data-phase="done"]) #auction-controls{min-height:92px}
+}
+
 /* Fill desktop home screens with the hero and mode cards, not empty margins. */
 @media(min-width:761px){
  body:has(#home:not([hidden])) main{max-width:1500px;min-height:calc(100svh - 66px);display:flex;flex-direction:column}
