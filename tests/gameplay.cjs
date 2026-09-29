@@ -50,9 +50,18 @@ for(const sport of ['football','basketball']){
  }
  // Completed games retain accounting and unique signings.
  for(let i=0;i<40;i++){run(`startGame('${i%2?'prime':'current'}')`);await run('toss()');let rounds=0;while(run('state.phase')!=='lineup'&&rounds++<80){await run('spin()');let actions=0;while(run('state.phase')==='bidding'&&actions++<45)run('!canPass(state.turn)||maxBid(state.turn)>state.bid&&(state.bid===0||Math.random()<.65)?bid(state.turn):pass(state.turn)');assert(actions<45);}assert.equal(run('state.phase'),'lineup');assert(run('state.teams.every(t=>t.squad.length===5&&t.money>=0&&t.squad.reduce((n,s)=>n+s.price,0)+t.money===20)'));assert.equal(run('new Set(state.teams.flatMap(t=>t.squad.map(s=>s.player.id))).size'),10);run('readyLineup(0);readyLineup(1)');assert.equal(run('state.phase'),'done');}
- run("startGame('current');state.teams[0].squad=playerPool().slice(0,2).map(player=>({player,price:1}));syncLineup(state.teams[0]);state.phase='bidding';state.turn=0;render()");
- const movedId=run('state.teams[0].order[0]');run('movePlayer(0,0,4)');assert.equal(run('state.teams[0].customized'),true);assert.throws(()=>run('movePlayer(1,0,4)'),/cannot be changed/);
- run('state.teams[0].squad.push({player:playerPool()[2],price:1});syncLineup(state.teams[0])');assert.equal(run('state.teams[0].order[4]'),movedId);
+ for(const mode of ['current','prime']){
+  run(`startGame('${mode}');state.teams[0].squad=playerPool().slice(0,2).map(player=>({player,price:1}));state.teams[1].squad=[{player:playerPool()[3],price:1}];state.teams.forEach(syncLineup);state.phase='bidding';state.turn=0;render()`);
+  const from=run('state.teams[0].order.findIndex(id=>id!==null)'),movedId=run(`state.teams[0].order[${from}]`);
+  run(`movePlayer(0,${from},4)`);assert.equal(run('state.teams[0].customized'),true);assert(run('canArrange(1)'));
+  const rivalSlot=run('state.teams[1].order.findIndex(id=>id!==null)');run(`movePlayer(1,${rivalSlot},${(rivalSlot+1)%5})`);assert.equal(run('state.teams[1].customized'),true);
+  run('state.teams[0].squad.push({player:playerPool()[2],price:1});syncLineup(state.teams[0])');assert.equal(run('state.teams[0].order[4]'),movedId);
+  run("state.phase='sold';render()");assert(run('canArrange(0)&&canArrange(1)'));
+  const otherFrom=run('state.teams[1].order.findIndex(id=>id!==null)');run(`movePlayer(1,${otherFrom},${(otherFrom+1)%5})`);
+  run("state.phase='free-ready';state.freeTurn=0;render()");assert(run('canArrange(0)&&canArrange(1)'));
+  run("state.phase='bidding';state.turn=1;render()");assert(run('canArrange(0)&&canArrange(1)'));
+  run("state.phase='spinning';render()");assert.throws(()=>run('movePlayer(0,4,0)'),/cannot be changed/);
+ }
  run("startGame('current')");let pending=run('toss()');run('reset()');await pending;assert.equal(run('state.phase'),'toss-ready');
  console.log(`PASS ${sport}: both modes, bidding guards, unlimited competitive passes, three solo skips, $20 all-in, delayed free picks, results, rematch, 40 complete matches.`);
  if(sport==='basketball'){

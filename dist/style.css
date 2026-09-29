@@ -335,11 +335,10 @@ header .header-right{gap:0}
 #game .roster-row.repositionable:hover .move-hint{opacity:1;transform:translateY(-2px)}
 #game .team.lineup-ready{border-color:var(--team-color);background:color-mix(in srgb,var(--team-color) 10%,var(--panel))}
 #game .team.lineup-ready .team-tag{background:var(--team-color);color:var(--bg)}
-.lineup-drag-ghost{position:fixed;left:0;top:0;z-index:100;pointer-events:none;width:max-content;max-width:min(270px,70vw);padding:10px 16px;border:1px solid var(--drag-accent);border-radius:7px;background:#172018f2;color:var(--text,#f4f5e9);box-shadow:0 16px 35px #0008,0 0 0 4px color-mix(in srgb,var(--drag-accent) 16%,transparent);transform:translate3d(-500px,-500px,0) rotate(-4deg);animation:drag-tab-pop .18s ease-out both}
-.lineup-drag-ghost small{display:block;color:var(--drag-accent);font:700 10px Barlow,Arial,sans-serif;letter-spacing:1.4px;margin-bottom:2px}
-.lineup-drag-ghost strong{font:800 24px 'Barlow Condensed',Impact,sans-serif}
+#game .roster-row.drag-placeholder{border:1px dashed var(--team-color);background:color-mix(in srgb,var(--team-color) 7%,var(--panel));opacity:.68}
+#game .roster-row.drag-placeholder .roster-name{color:var(--team-color);font-size:11px;font-weight:700}
+#game .roster-row.dragging-player-tab{position:fixed;z-index:1000;pointer-events:none;cursor:grabbing;border-color:var(--team-color);background:color-mix(in srgb,var(--team-color) 13%,var(--panel));box-shadow:0 18px 34px #0009,0 0 0 3px color-mix(in srgb,var(--team-color) 34%,transparent);scale:1.035;rotate:-1.5deg;transition:box-shadow .16s,scale .16s,rotate .16s}
 body.lineup-dragging,body.lineup-dragging *{cursor:grabbing!important}
-@keyframes drag-tab-pop{from{opacity:.4;scale:.85}to{opacity:1;scale:1}}
 #game .auction[data-phase="lineup"]{border-color:var(--lime);background:radial-gradient(circle at 50% 32%,color-mix(in srgb,var(--lime) 13%,transparent),transparent 57%),var(--panel)}
 #game .lineup-stage{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:5px;overflow:hidden}
 #game .lineup-stage-kicker{color:var(--lime);font-size:11px;letter-spacing:2px;font-weight:800}
@@ -355,4 +354,4 @@ body.lineup-dragging,body.lineup-dragging *{cursor:grabbing!important}
 #game .lineup-ready-actions .primary{padding:9px 12px;font-size:14px;min-height:40px}
 #game .lineup-ready-actions .primary.is-ready{background:transparent;color:var(--lime)}
 @media(max-width:760px){#game .lineup-stage h2{font-size:31px}#game .lineup-stage-mark{font-size:39px}#game .lineup-stage p{font-size:11px}#game .lineup-ready-actions{gap:5px}#game .lineup-ready-actions .primary{padding:6px;font-size:12px;min-height:38px}#game .auction[data-phase="lineup"] .control-hint{display:none}#game .move-hint{font-size:14px}}
-@media(prefers-reduced-motion:reduce){#game .roster-row.repositionable,.lineup-drag-ghost{transition:none;animation:none}}
+@media(prefers-reduced-motion:reduce){#game .roster-row.repositionable,#game .roster-row.dragging-player-tab{transition:none;animation:none;scale:1;rotate:0deg}}
