@@ -19,10 +19,10 @@ for(const sport of ['football','basketball']){
  prepare();fx.run('showResults(false)');const stale=fx.timers.slice(-3);fx.run('reset()');stale.forEach(f=>f());assert.equal(fx.node('results').hidden,true);assert.equal(fx.node('results').innerHTML,'');
  prepare();fx.run('showResults(false)');fx.node('skip-reveal').onclick();assert.equal(fx.run('state.revealed'),true);
  console.log(`PASS ${sport}: concealed scores, staged reveal, duplicate-click guard, timer cancellation and skip animation.`);
- const audio=engine(sport);audio.run('globalThis.soundTicks=0;globalThis.soundSettles=0;window.HBW_SOUND.tick=()=>soundTicks++;window.HBW_SOUND.settle=()=>soundSettles++');
+ const audio=engine(sport);audio.run('globalThis.soundTicks=0;globalThis.soundSettles=0;globalThis.soundSignings=0;window.HBW_SOUND.tick=()=>soundTicks++;window.HBW_SOUND.settle=()=>soundSettles++;window.HBW_SOUND.sign=()=>soundSignings++');
  audio.run("startGame('current')");await audio.run('toss()');assert.equal(audio.run('soundTicks+soundSettles'),0);
  await audio.run('spin()');assert.equal(audio.run('soundTicks'),1);assert.equal(audio.run('soundSettles'),1);
- audio.run("state.phase='free-ready';state.freeTurn=0");await audio.run('spin()');assert.equal(audio.run('soundTicks'),2);assert.equal(audio.run('soundSettles'),2);
+ audio.run("state.phase='free-ready';state.freeTurn=0");await audio.run('spin()');assert.equal(audio.run('soundTicks'),2);assert.equal(audio.run('soundSettles'),1);assert.equal(audio.run('soundSignings'),1);
 }
 for(const sport of ['football','basketball']){
  const {run,node}=engine(sport);

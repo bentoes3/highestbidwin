@@ -29,6 +29,7 @@
 .court-key{top:50%;height:40px;transform:translateY(-50%)}
 .court-key:after{width:40px;height:40px;left:64px}
 .sport-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px;line-height:1.5}.sport-meta span{margin:0 4px}
+.selector-header-right{display:flex;align-items:center;gap:12px}
 
 /* Let the artwork grow into the screen, with room for the tilted lettering. */
 .sport-art{container-type:size}

@@ -365,3 +365,9 @@ header .sound-toggle .sound-slash{opacity:0}
 header .sound-toggle.muted .sound-wave{opacity:0}
 header .sound-toggle.muted .sound-slash{opacity:1}
 @media(max-width:760px){header .sound-toggle{width:34px;height:34px}header .sound-toggle svg{width:17px;height:17px}}
+/* The mark and edition are two clear destinations, including on phones. */
+header .brand-home,header .brand-edition{color:inherit;text-decoration:none}
+header .brand-home{display:flex;align-items:center}
+header .brand-home:hover .brand-mark,header .brand-edition:hover{color:var(--lime);filter:brightness(1.12)}
+header .brand-edition{display:block}
+@media(max-width:760px){header .brand-edition{display:block;font-size:9px;letter-spacing:.7px;padding-left:8px}}
