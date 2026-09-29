@@ -5,7 +5,7 @@ function engine(sport,manual=false){
  const timers=[];
  const nodes=new Map();function node(id){if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',hidden:false,classList:{add(){},remove(){},toggle(){}},setAttribute(){},scrollIntoView(){},showModal(){},close(){}});return nodes.get(id);}
  const sb={document:{getElementById:node,querySelector:node,querySelectorAll:()=>[]},window:{matchMedia:()=>({matches:!manual}),scrollTo(){}},setTimeout:manual?(f=>{timers.push(f);return timers.length;}):(f=>setTimeout(f,0)),clearTimeout,setInterval,clearInterval,console};vm.createContext(sb);
- for(const f of ['players.js','game.js'])vm.runInContext(fs.readFileSync(`dist/${sport==='basketball'?'basketball/':''}${f}`,'utf8'),sb);
+ for(const f of ['players.js','game.js']){if(f==='game.js')vm.runInContext(fs.readFileSync('dist/sound.js','utf8'),sb);vm.runInContext(fs.readFileSync(`dist/${sport==='basketball'?'basketball/':''}${f}`,'utf8'),sb);}
  return {run:s=>vm.runInContext(s,sb),node,timers};
 }
 (async()=>{
@@ -19,6 +19,10 @@ for(const sport of ['football','basketball']){
  prepare();fx.run('showResults(false)');const stale=fx.timers.slice(-3);fx.run('reset()');stale.forEach(f=>f());assert.equal(fx.node('results').hidden,true);assert.equal(fx.node('results').innerHTML,'');
  prepare();fx.run('showResults(false)');fx.node('skip-reveal').onclick();assert.equal(fx.run('state.revealed'),true);
  console.log(`PASS ${sport}: concealed scores, staged reveal, duplicate-click guard, timer cancellation and skip animation.`);
+ const audio=engine(sport);audio.run('globalThis.soundTicks=0;globalThis.soundSettles=0;window.HBW_SOUND.tick=()=>soundTicks++;window.HBW_SOUND.settle=()=>soundSettles++');
+ audio.run("startGame('current')");await audio.run('toss()');assert.equal(audio.run('soundTicks+soundSettles'),0);
+ await audio.run('spin()');assert.equal(audio.run('soundTicks'),1);assert.equal(audio.run('soundSettles'),1);
+ audio.run("state.phase='free-ready';state.freeTurn=0");await audio.run('spin()');assert.equal(audio.run('soundTicks'),2);assert.equal(audio.run('soundSettles'),2);
 }
 for(const sport of ['football','basketball']){
  const {run,node}=engine(sport);

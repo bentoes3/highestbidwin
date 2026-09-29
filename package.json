@@ -7,7 +7,7 @@
     "dev": "node scripts/serve.mjs",
     "preview": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "test": "node tests/gameplay.cjs && node tests/routes.mjs"
+    "test": "node tests/gameplay.cjs && node tests/sound.cjs && node tests/routes.mjs"
   },
   "engines": {
     "node": ">=22"

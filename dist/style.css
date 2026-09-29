@@ -355,3 +355,13 @@ body.lineup-dragging,body.lineup-dragging *{cursor:grabbing!important}
 #game .lineup-ready-actions .primary.is-ready{background:transparent;color:var(--lime)}
 @media(max-width:760px){#game .lineup-stage h2{font-size:31px}#game .lineup-stage-mark{font-size:39px}#game .lineup-stage p{font-size:11px}#game .lineup-ready-actions{gap:5px}#game .lineup-ready-actions .primary{padding:6px;font-size:12px;min-height:38px}#game .auction[data-phase="lineup"] .control-hint{display:none}#game .move-hint{font-size:14px}}
 @media(prefers-reduced-motion:reduce){#game .roster-row.repositionable,#game .roster-row.dragging-player-tab{transition:none;animation:none;scale:1;rotate:0deg}}
+
+/* A compact sound switch keeps the auction audible without crowding the header. */
+header .header-right{gap:8px}
+header .sound-toggle{width:37px;height:37px;display:grid;place-items:center;flex:none;padding:0;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted)}
+header .sound-toggle:hover{color:var(--lime);border-color:var(--lime)}
+header .sound-toggle svg{width:19px;height:19px}
+header .sound-toggle .sound-slash{opacity:0}
+header .sound-toggle.muted .sound-wave{opacity:0}
+header .sound-toggle.muted .sound-slash{opacity:1}
+@media(max-width:760px){header .sound-toggle{width:34px;height:34px}header .sound-toggle svg{width:17px;height:17px}}
