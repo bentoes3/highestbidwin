@@ -348,8 +348,10 @@
     if (invite) { $('online-code-input').value = invite.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6); showDialog(); }
     let saved;
     try { saved = JSON.parse(sessionStorage.getItem(storageKey)); } catch {}
+    // Browsers may clone sessionStorage into a new tab opened from the host.
+    // An invite must not silently reclaim that host seat instead of joining.
     const matchingTab = saved?.code && saved?.token && [1, 2].includes(saved.seat) &&
-      (!invite || saved.code === invite.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6));
+      (!invite || (saved.seat === 2 && saved.code === invite.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6)));
     if (matchingTab) restore(saved);
     else if (!invite) {
       const entries = readRecovery();
