@@ -263,6 +263,15 @@ html.glass-design .result-panel {
   border-color: rgba(255, 255, 255, .11);
   border-radius: 1.5rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .065), 0 18px 45px #0005;
+}
+
+/* Large blurred panels can leave a visible compositor seam while the game animates. */
+html.glass-design #game .team,
+html.glass-design #game .auction {
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+}
+
+html.glass-design .result-panel {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -273,13 +282,13 @@ html.glass-design #game .team {
 
 html.glass-design #game .team.active-turn {
   border-color: var(--team-color);
-  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--team-color) 16%, transparent), transparent 70%), rgba(255, 255, 255, .045);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--team-color) 16%, transparent), transparent 70%), color-mix(in srgb, var(--panel) 90%, transparent);
   box-shadow: 0 0 0 1px var(--team-color), 0 0 32px color-mix(in srgb, var(--team-color) 22%, transparent), inset 0 1px 0 rgba(255, 255, 255, .1);
 }
 
 html.glass-design #game .team.lineup-ready {
   border-color: var(--team-color);
-  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--team-color) 12%, transparent), transparent 70%), rgba(255, 255, 255, .04);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--team-color) 12%, transparent), transparent 70%), color-mix(in srgb, var(--panel) 90%, transparent);
 }
 
 html.glass-design #game .active-turn .team-head {
@@ -290,7 +299,7 @@ html.glass-design #game .auction[data-player="1"] { border-color: color-mix(in s
 html.glass-design #game .auction[data-player="2"] { border-color: color-mix(in srgb, var(--orange) 55%, rgba(255, 255, 255, .1)); }
 html.glass-design #game .auction[data-phase="lineup"] {
   border-color: var(--glass-accent);
-  background: radial-gradient(ellipse at 50% 30%, rgba(var(--glass-accent-rgb), .13), transparent 66%), rgba(255, 255, 255, .035);
+  background: radial-gradient(ellipse at 50% 30%, rgba(var(--glass-accent-rgb), .13), transparent 66%), color-mix(in srgb, var(--panel) 90%, transparent);
 }
 
 html.glass-design #game .roster-row {
