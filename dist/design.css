@@ -419,3 +419,171 @@ html.glass-design dialog::backdrop {
   html.glass-design body:has(#home:not([hidden])) .home-copy { padding-top: 20px; }
   html.glass-design body:has(#home:not([hidden])) .home-copy h1 { font-size: 40px; }
 }
+
+/* A second way to start fits the existing era screen without adding another card. */
+html.glass-design .start-row { justify-content: flex-end; gap: 12px; }
+html.glass-design .online-start {
+  min-width: 180px;
+  min-height: 52px;
+  padding: 12px 22px;
+  border: 1px solid rgba(var(--glass-accent-rgb), .42);
+  border-radius: 9999px;
+  background: rgba(var(--glass-accent-rgb), .075);
+  color: var(--glass-text);
+  font-family: 'Space Grotesk', Barlow, Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+html.glass-design .online-start span { margin-left: 12px; color: var(--glass-accent); }
+html.glass-design .online-start:hover {
+  border-color: var(--glass-accent);
+  background: rgba(var(--glass-accent-rgb), .13);
+  box-shadow: 0 0 24px rgba(var(--glass-accent-rgb), .12);
+}
+
+/* The room indicator is small enough to share the existing game status row. */
+html.glass-design .online-room-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 240px;
+  padding: 6px 10px;
+  border: 1px solid rgba(var(--glass-accent-rgb), .28);
+  border-radius: 9999px;
+  background: rgba(var(--glass-accent-rgb), .075);
+  color: var(--glass-text);
+  font: 600 10px/1.2 'JetBrains Mono', monospace;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+html.glass-design .online-room-status [id="online-room-label"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html.glass-design .online-status-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--glass-accent);
+  box-shadow: 0 0 8px rgba(var(--glass-accent-rgb), .5);
+}
+html.glass-design .online-room-status[data-state="disconnected"] .online-status-dot { background: #ff727d; box-shadow: 0 0 8px #ff727d88; }
+html.glass-design .online-room-status[data-state="waiting"] .online-status-dot { background: #f2c66d; box-shadow: 0 0 8px #f2c66d88; }
+html.glass-design .online-room-status[hidden],
+html.glass-design .online-entry[hidden],
+html.glass-design .online-room-waiting[hidden],
+html.glass-design .online-error[hidden] { display: none !important; }
+
+/* Private-room setup stays in a modal so the home and game heights do not jump. */
+html.glass-design #online-dialog {
+  width: min(460px, calc(100vw - 28px));
+  max-height: min(90svh, 650px);
+  padding: 28px;
+  overflow: auto;
+}
+html.glass-design #online-dialog h2 { margin: 5px 0 8px; font-size: clamp(30px, 6vw, 42px); }
+html.glass-design #online-dialog .online-dialog-copy {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+html.glass-design .online-entry { display: grid; gap: 14px; }
+html.glass-design .online-entry .primary { min-height: 50px; }
+html.glass-design .online-recovery { display: grid; gap: 8px; }
+html.glass-design .online-recovery > span {
+  color: var(--muted);
+  font: 600 10px 'JetBrains Mono', monospace;
+  letter-spacing: .1em;
+}
+html.glass-design .online-recovery .quiet { width: 100%; text-align: center; }
+html.glass-design .online-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font: 600 10px 'JetBrains Mono', monospace;
+  letter-spacing: .1em;
+  white-space: nowrap;
+}
+html.glass-design .online-divider::before,
+html.glass-design .online-divider::after { content: ''; height: 1px; flex: 1; background: rgba(255, 255, 255, .15); }
+html.glass-design #online-dialog label,
+html.glass-design .online-room-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font: 600 10px 'JetBrains Mono', monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+html.glass-design .online-join-row,
+html.glass-design .online-share-row { display: flex; gap: 8px; }
+html.glass-design #online-dialog input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 10px;
+  outline: none;
+  background: rgba(255, 255, 255, .045);
+  color: var(--glass-text);
+  font: 600 14px 'JetBrains Mono', monospace;
+}
+html.glass-design #online-dialog input:focus-visible { border-color: var(--glass-accent); box-shadow: 0 0 0 3px rgba(var(--glass-accent-rgb), .16); }
+html.glass-design #online-code-input { flex: 1; letter-spacing: .13em; text-transform: uppercase; }
+html.glass-design #online-dialog input::placeholder { color: var(--muted); opacity: .8; }
+html.glass-design #online-dialog .online-join-row .quiet,
+html.glass-design #online-dialog .online-share-row .quiet { flex: 0 0 auto; padding-inline: 14px; white-space: nowrap; }
+html.glass-design .online-room-waiting {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(var(--glass-accent-rgb), .32);
+  border-radius: 15px;
+  background: rgba(var(--glass-accent-rgb), .055);
+}
+html.glass-design .online-room-code {
+  display: block;
+  margin: 2px 0 15px;
+  color: var(--glass-accent);
+  font: 700 clamp(28px, 7vw, 38px)/1 'JetBrains Mono', monospace;
+  letter-spacing: .13em;
+}
+html.glass-design #online-invite-link { font-size: 11px; font-weight: 400; }
+html.glass-design .online-leave {
+  display: block;
+  margin: 14px auto 0;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+html.glass-design .online-dialog-status,
+html.glass-design .online-error { min-height: 20px; margin: 14px 0 0; font-size: 13px; line-height: 1.4; }
+html.glass-design .online-dialog-status { color: var(--muted); }
+html.glass-design .online-error { color: #ff999f; }
+
+@media (max-width: 760px) {
+  html.glass-design .start-row { flex-direction: column; gap: 10px; }
+  html.glass-design .start-row .primary,
+  html.glass-design .online-start { width: 100%; max-width: none; }
+  html.glass-design .online-start { min-height: 46px; }
+  html.glass-design .round-bar:has(.online-room-status:not([hidden])) .progress-track { display: none; }
+  html.glass-design .online-room-status { margin-left: auto; max-width: 115px; padding: 5px 8px; font-size: 9px; }
+  html.glass-design .round-bar:has(.online-room-status:not([hidden])) #signed-count { display: none; }
+  html.glass-design #online-dialog { padding: 22px 18px; }
+}
+
+@media (max-width: 360px) {
+  html.glass-design .online-join-row,
+  html.glass-design .online-share-row { flex-wrap: wrap; }
+  html.glass-design #online-dialog .online-join-row .quiet,
+  html.glass-design #online-dialog .online-share-row .quiet { width: 100%; }
+}

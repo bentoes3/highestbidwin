@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const dir=resolve(root,'dist');
-const required=['index.html','selector.css','navigation.css','style.css','design.css','roster-polish.css','sound.js','game.js','players.js','_headers','football/index.html','basketball/index.html','basketball/theme.css','basketball/game.js','basketball/players.js'];
+const required=['index.html','selector.css','navigation.css','style.css','design.css','roster-polish.css','sound.js','online.js','game.js','players.js','_headers','football/index.html','basketball/index.html','basketball/theme.css','basketball/game.js','basketball/players.js'];
 function files(at){return readdirSync(at,{withFileTypes:true}).flatMap(f=>f.isDirectory()?files(resolve(at,f.name)):[relative(dir,resolve(at,f.name)).split(sep).join('/')]);}
 for(const name of required)if(!statSync(resolve(dir,name)).isFile())throw Error(`Missing file: ${name}`);
 for(const name of files(dir)) {
