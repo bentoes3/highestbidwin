@@ -4,6 +4,8 @@
   const sport = document.body.dataset.sport;
   const storageKey = `hbw-online-room-${sport}`;
   const recoveryKey = `hbw-online-sessions-${sport}`;
+  const pausedKey = `hbw-online-paused-${sport}`;
+  const pendingJoinKey = `hbw-online-pending-join-${sport}`;
   const $ = id => document.getElementById(id);
   let code = '', token = '', seat = 0, version = -1, joined = false;
   let connected = true, busy = false, pollTimer = null, spinLoop = null;
@@ -41,7 +43,18 @@
   function save() {
     const entry = {code, token, seat};
     try { sessionStorage.setItem(storageKey, JSON.stringify(entry)); } catch {}
+    try { localStorage.removeItem(pausedKey); } catch {}
     remember(entry);
+  }
+  function joinToken(roomCode) {
+    try {
+      const pending = JSON.parse(sessionStorage.getItem(pendingJoinKey));
+      if (pending?.code === roomCode && /^[A-Za-z0-9_-]{43}$/.test(pending.token)) return pending.token;
+    } catch {}
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const next = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    try { sessionStorage.setItem(pendingJoinKey, JSON.stringify({code: roomCode, token: next})); } catch {}
+    return next;
   }
   function clear(forgetSeat = true) {
     if (forgetSeat && code && token) forget({code, token, seat});
@@ -88,6 +101,7 @@
       $('online-room-code').textContent = `${code.slice(0, 3)} ${code.slice(3)}`;
       $('online-invite-link').value = roomLink();
       $('online-leave').textContent = joined ? 'Back to game' : 'Cancel room';
+      $('online-exit').hidden = !joined;
       status(joined ? `Player ${seat} · Connected` : 'Waiting for Player 2 to join…');
     } else { status(''); renderRecovery(); }
     if (!$('online-dialog').open) $('online-dialog').showModal();
@@ -243,6 +257,7 @@
   }
   async function connect(data) {
     code = data.code; token = data.token; seat = data.seat;
+    try { sessionStorage.removeItem(pendingJoinKey); } catch {}
     api.active = true; version = -1; save();
     hydrate(data, true);
     schedulePoll(700);
@@ -279,7 +294,7 @@
     if (roomCode.length !== 6) { error('Enter the six-character code your friend sent.'); return; }
     busy = true; error(); status('Joining your friend…');
     $('online-join').disabled = true;
-    try { await connect(await request({op: 'join', code: roomCode})); }
+    try { await connect(await request({op: 'join', code: roomCode, token: joinToken(roomCode)})); }
     catch (cause) { error(cause.message); status(''); }
     finally { busy = false; $('online-join').disabled = false; afterRender(); }
   }
@@ -291,6 +306,18 @@
     roomBadge();
     try { await request({op: 'leave', code: oldCode, token: oldToken}); } catch {}
     location.assign(`/${sport}/`);
+  }
+  function exitRoom() {
+    if (!api.active) return;
+    // Keep a recovery token so a player can resume the same seat if their
+    // friend is still playing, but do not force them back into this room.
+    clear(false);
+    try { localStorage.setItem(pausedKey, '1'); } catch {}
+    if ($('online-dialog').open) $('online-dialog').close();
+    if (location.search) history.replaceState(null, '', location.pathname);
+    reset(selectedMode);
+    showHome();
+    roomBadge();
   }
   async function copyLink() {
     const field = $('online-invite-link');
@@ -343,6 +370,7 @@
     $('online-code-input').addEventListener('input', event => { event.target.value = event.target.value.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6); });
     $('online-copy').onclick = copyLink;
     $('online-leave').onclick = leaveRoom;
+    $('online-exit').onclick = exitRoom;
     document.addEventListener('visibilitychange', () => { if (!document.hidden && api.active) schedulePoll(0); });
     const invite = new URLSearchParams(location.search).get('join');
     if (invite) { $('online-code-input').value = invite.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6); showDialog(); }
@@ -355,7 +383,9 @@
     if (matchingTab) restore(saved);
     else if (!invite) {
       const entries = readRecovery();
-      if (entries.length === 1) restore(entries[0]);
+      let paused = false;
+      try { paused = !!localStorage.getItem(pausedKey); } catch {}
+      if (entries.length === 1 && !paused) restore(entries[0]);
       else if (entries.length > 1) showDialog();
     }
   }

@@ -152,13 +152,17 @@ async function create(db, body, now) {
 async function join(db, body, now) {
   const code = normalizeCode(body.code);
   if (!code) return fail('Enter a valid room code.', 400);
-  const token = randomToken();
+  if (body.token != null && !validToken(body.token)) return fail('Your player session is invalid. Try joining again.', 400);
+  const token = body.token || randomToken();
   const tokenHash = await hashToken(token);
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const loaded = await readRoom(db, code, now);
     if (loaded.error) return loaded.error;
     const { row, state } = loaded;
+    // A retry with the same private token must recover Player 2 if the first
+    // join succeeded but its response was lost in transit.
+    if (row.seat2_hash === tokenHash) return roomResponse(row, state, 2, token);
     if (row.seat2_hash) return fail('This room already has two players.', 409);
     state.version = row.version + 1;
     const nextState = JSON.stringify(state);

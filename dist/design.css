@@ -565,6 +565,7 @@ html.glass-design .online-leave {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+html.glass-design #online-exit[hidden] { display: none; }
 html.glass-design .online-dialog-status,
 html.glass-design .online-error { min-height: 20px; margin: 14px 0 0; font-size: 13px; line-height: 1.4; }
 html.glass-design .online-dialog-status { color: var(--muted); }

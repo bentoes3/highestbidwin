@@ -119,6 +119,22 @@ test('two private seats join one room; a third player and wrong token cannot ent
   assert.equal((await call(db, { op: 'sync', code: host.body.code, token: 'x'.repeat(43) })).status, 403);
 });
 
+test('a guest can retry the same join after a lost response without taking another seat', async () => {
+  const db = new FakeD1();
+  const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+  const token = 'A'.repeat(43);
+  const first = await call(db, { op: 'join', code: host.code, token });
+  const retry = await call(db, { op: 'join', code: host.code, token });
+  assert.equal(first.status, 200);
+  assert.equal(retry.status, 200);
+  assert.equal(first.body.seat, 2);
+  assert.equal(retry.body.seat, 2);
+  assert.equal(retry.body.version, first.body.version);
+  assert.equal(retry.body.token, token);
+  assert.equal((await call(db, { op: 'join', code: host.code, token: 'B'.repeat(43) })).status, 409);
+  assert.equal((await call(db, { op: 'join', code: host.code, token: 'invalid' })).status, 400);
+});
+
 test('the server enforces action seats, versions, and delayed reveal phases', async () => {
   const db = new FakeD1();
   const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
