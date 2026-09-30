@@ -108,7 +108,9 @@
   }
   function renderRecovery() {
     const invite = new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6);
-    const entries = readRecovery().filter(entry => !invite || entry.code === invite);
+    // On an invite link, the host's saved Player 1 seat must not compete with
+    // the obvious Join room action in a second tab on the same browser.
+    const entries = readRecovery().filter(entry => !invite || (entry.code === invite && entry.seat === 2));
     let box = $('online-recovery');
     if (!entries.length) { box?.remove(); return; }
     if (!box) {
