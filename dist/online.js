@@ -9,6 +9,34 @@
   const $ = id => document.getElementById(id);
   let code = '', token = '', seat = 0, version = -1, joined = false;
   let connected = true, busy = false, pollTimer = null, spinLoop = null;
+  let presence = {inactive: [false, false], paused: false};
+  let lastActivity = Date.now();
+  const IDLE_AFTER_MS = 120000;
+
+  function visibleAndActive() { return !document.hidden && Date.now() - lastActivity < IDLE_AFTER_MS; }
+  function awayPlayers() { return presence.inactive.flatMap((away, index) => away ? [index + 1] : []); }
+  function pauseMessage() {
+    const away = awayPlayers();
+    return away.length === 2 ? 'Both players are away.' : away.length === 1
+      ? `Player ${away[0]} is away.` : 'A player is away.';
+  }
+  function pauseView() {
+    const notice = $('online-pause-notice');
+    if (!notice) return;
+    notice.hidden = !api.active || !joined || !connected || !presence.paused || state.phase === 'done';
+    if (!notice.hidden) {
+      $('online-pause-title').textContent = pauseMessage();
+      $('online-pause-copy').textContent = 'Game paused. It resumes when both players return.';
+    }
+  }
+  function setPresence(value) {
+    if (!value || !Array.isArray(value.inactive)) return false;
+    const next = {inactive: [!!value.inactive[0], !!value.inactive[1]], paused: !!value.paused};
+    const changed = next.paused !== presence.paused || next.inactive.some((away, i) => away !== presence.inactive[i]);
+    presence = next;
+    if (next.paused) stopFakeSpin();
+    return changed;
+  }
 
   function error(message = '') {
     const box = $('online-error');
@@ -64,7 +92,9 @@
     pollTimer = spinLoop = null;
     code = token = ''; seat = 0; version = -1; joined = false;
     connected = true; busy = false;
+    presence = {inactive: [false, false], paused: false};
     api.active = false;
+    pauseView();
   }
   async function request(body) {
     const controller = new AbortController();
@@ -93,7 +123,7 @@
     const hasRoom = !!code;
     $('online-entry').hidden = hasRoom;
     $('online-room-waiting').hidden = !hasRoom;
-    $('online-dialog-title').textContent = hasRoom ? `Room ${code}` : 'Play online.';
+    $('online-dialog-title').textContent = hasRoom ? `Room ${code}` : 'Create a room.';
     $('online-dialog-copy').textContent = hasRoom
       ? `You are Player ${seat}. ${joined ? 'Your friend is in the room.' : 'Send your friend this code or link.'}`
       : 'One room. Two devices. Choose your era, then invite a friend or enter their code.';
@@ -102,7 +132,7 @@
       $('online-invite-link').value = roomLink();
       $('online-leave').textContent = joined ? 'Back to game' : 'Cancel room';
       $('online-exit').hidden = !joined;
-      status(joined ? `Player ${seat} · Connected` : 'Waiting for Player 2 to join…');
+      status(joined ? presence.paused ? pauseMessage() + ' Game paused.' : `Player ${seat} · Connected` : 'Waiting for Player 2 to join…');
     } else { status(''); renderRecovery(); }
     if (!$('online-dialog').open) $('online-dialog').showModal();
   }
@@ -136,9 +166,11 @@
     const badge = $('online-room-status');
     badge.hidden = !api.active;
     if (!api.active) return;
-    badge.dataset.state = connected ? (joined ? 'connected' : 'waiting') : 'disconnected';
-    $('online-room-label').textContent = `${code} · YOU P${seat}`;
-    badge.title = connected ? `Room ${code}. You are Player ${seat}. Open invite details.` : 'Connection lost. Retrying…';
+    badge.dataset.state = connected ? (!joined ? 'waiting' : presence.paused ? 'paused' : 'connected') : 'disconnected';
+    $('online-room-label').textContent = presence.paused ? `${code} · PAUSED` : `${code} · YOU P${seat}`;
+    badge.title = !connected ? 'Connection lost. Retrying…' : presence.paused
+      ? `Room ${code}. ${pauseMessage()} Game paused. Open room details.`
+      : `Room ${code}. You are Player ${seat}. Open invite details.`;
   }
   function nextSpinner() {
     if (state.phase === 'free-ready') return state.freeTurn;
@@ -147,7 +179,7 @@
     return canBuy(opener) ? opener : canBuy(1 - opener) ? 1 - opener : null;
   }
   function ownsControl() {
-    if (!joined || !connected || busy) return false;
+    if (!joined || !connected || busy || presence.paused || !visibleAndActive()) return false;
     if (state.phase === 'toss-ready') return seat === 1;
     if (['ready', 'sold', 'unsold', 'free-ready'].includes(state.phase)) return nextSpinner() === seat - 1;
     if (state.phase === 'bidding') return state.turn === seat - 1;
@@ -156,6 +188,8 @@
   function afterRender() {
     if (!api.active) return;
     roomBadge();
+    pauseView();
+    if ($('online-dialog').open && joined) status(presence.paused ? `${pauseMessage()} Game paused.` : `Player ${seat} · Connected`);
     const ownTurn = ownsControl();
     for (const id of ['toss', 'spin', 'bid', 'pass', 'all-in', 'final-lineups']) {
       const button = $(id);
@@ -163,7 +197,7 @@
     }
     if (!ownTurn) {
       const hint = document.querySelector('#auction-controls .control-hint');
-      if (hint) hint.textContent = !connected ? 'Reconnecting to the room…' : !joined ? 'Waiting for your friend to join…' : busy ? 'Sending your move…' : `Waiting for Player ${state.phase === 'bidding' ? state.turn + 1 : state.phase === 'free-ready' ? state.freeTurn + 1 : state.phase === 'toss-ready' ? 1 : (nextSpinner() ?? 0) + 1}…`;
+      if (hint) hint.textContent = !connected ? 'Reconnecting to the room…' : !joined ? 'Waiting for your friend to join…' : presence.paused ? 'Game paused until both players return.' : busy ? 'Sending your move…' : `Waiting for Player ${state.phase === 'bidding' ? state.turn + 1 : state.phase === 'free-ready' ? state.freeTurn + 1 : state.phase === 'toss-ready' ? 1 : (nextSpinner() ?? 0) + 1}…`;
     }
     if (state.phase === 'lineup') {
       for (let i = 0; i < 2; i++) {
@@ -172,14 +206,14 @@
         if (i !== seat - 1) {
           button.disabled = true;
           button.textContent = state.teams[i].ready ? `✓ Player ${i + 1} locked` : `Waiting for Player ${i + 1}`;
-        } else if (!connected || busy) button.disabled = true;
+        } else if (!connected || busy || presence.paused || !visibleAndActive()) button.disabled = true;
       }
     }
   }
   function stopFakeSpin() { clearInterval(spinLoop); spinLoop = null; }
   function startFakeSpin() {
     stopFakeSpin();
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (presence.paused || !visibleAndActive() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let frames = 0;
     spinLoop = setInterval(() => {
       if (!api.active || !['spinning', 'free-spinning'].includes(state.phase)) return stopFakeSpin();
@@ -219,9 +253,17 @@
     }
     const wasConnected = connected;
     connected = true;
-    if (!force && data.version <= version) { if (wasConnected) roomBadge(); else render(); return; }
-    const previous = api.active && version >= 0 ? state : null;
+    const presenceChanged = setPresence(data.presence);
+    const wasJoined = joined;
     joined = !!data.joined;
+    if (!force && data.version <= version) {
+      if (!wasConnected || presenceChanged || wasJoined !== joined) render();
+      else { roomBadge(); pauseView(); }
+      if (!presence.paused && ['spinning', 'free-spinning'].includes(state.phase) && !spinLoop) startFakeSpin();
+      if (joined && $('online-dialog').open) $('online-dialog').close();
+      return;
+    }
+    const previous = api.active && version >= 0 ? state : null;
     version = data.version;
     selectedMode = data.state.mode;
     state = {...data.state, revealed: false, revealing: false};
@@ -241,11 +283,10 @@
   async function poll() {
     if (!api.active) return;
     if (busy) return schedulePoll(650);
-    if (document.hidden) return schedulePoll(3500);
     try {
-      const data = await request({op: 'sync', code, token});
+      const data = await request({op: 'sync', code, token, visible: visibleAndActive()});
       hydrate(data);
-      schedulePoll(state.phase === 'bidding' ? 850 : 1200);
+      schedulePoll(visibleAndActive() ? state.phase === 'bidding' ? 850 : 1200 : 12000);
     } catch (cause) {
       connected = false;
       if ([403, 404, 410].includes(cause.status)) {
@@ -271,7 +312,7 @@
     code = entry.code; token = entry.token; seat = entry.seat;
     api.active = true; version = -1; save();
     try {
-      hydrate(await request({op: 'sync', code, token}), true);
+      hydrate(await request({op: 'sync', code, token, visible: visibleAndActive()}), true);
       schedulePoll(800);
     } catch (cause) {
       const message = cause.message;
@@ -331,6 +372,7 @@
   async function action(command, expectedSeat) {
     if (!api.active || !joined) throw Error('Wait for your friend to join first.');
     if (expectedSeat && expectedSeat !== seat) throw Error('You can only move your own team.');
+    if (presence.paused || !visibleAndActive()) { schedulePoll(0); return readState(); }
     if (!connected || busy) return readState();
     busy = true; afterRender();
     let actionError = '';
@@ -359,6 +401,15 @@
     return readState();
   }
   function mount() {
+    const pauseNotice = document.createElement('div');
+    pauseNotice.id = 'online-pause-notice';
+    pauseNotice.className = 'online-pause-notice';
+    pauseNotice.hidden = true;
+    pauseNotice.setAttribute('role', 'status');
+    pauseNotice.setAttribute('aria-live', 'polite');
+    pauseNotice.setAttribute('aria-atomic', 'true');
+    pauseNotice.innerHTML = '<span class="online-pause-kicker">ONLINE MATCH · ON HOLD</span><span class="online-pause-mark" aria-hidden="true">Ⅱ</span><strong id="online-pause-title"></strong><span id="online-pause-copy"></span>';
+    document.querySelector('.auction').append(pauseNotice);
     const badge = $('online-room-status');
     badge.tabIndex = 0;
     badge.setAttribute('role', 'button');
@@ -373,7 +424,26 @@
     $('online-copy').onclick = copyLink;
     $('online-leave').onclick = leaveRoom;
     $('online-exit').onclick = exitRoom;
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && api.active) schedulePoll(0); });
+    const recordActivity = () => {
+      const wasIdle = !visibleAndActive();
+      lastActivity = Date.now();
+      if (wasIdle && api.active) schedulePoll(0);
+    };
+    document.addEventListener('pointerdown', recordActivity, {passive: true, capture: true});
+    document.addEventListener('keydown', recordActivity, {passive: true});
+    document.addEventListener('touchstart', recordActivity, {passive: true});
+    let lastPointerMoveAt = 0;
+    document.addEventListener('pointermove', () => {
+      const now = Date.now();
+      if (now - lastPointerMoveAt < 5000) return;
+      lastPointerMoveAt = now;
+      recordActivity();
+    }, {passive: true});
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) lastActivity = Date.now();
+      else stopFakeSpin();
+      if (api.active) schedulePoll(0);
+    });
     const invite = new URLSearchParams(location.search).get('join');
     if (invite) { $('online-code-input').value = invite.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6); showDialog(); }
     let saved;
@@ -391,6 +461,6 @@
       else if (entries.length > 1) showDialog();
     }
   }
-  const api = {active: false, get seat() { return seat; }, canArrange: team => joined && connected && !busy && seat === team + 1, action, afterRender, mount, restart};
+  const api = {active: false, get seat() { return seat; }, get presence() { return presence; }, canArrange: team => joined && connected && !busy && !presence.paused && visibleAndActive() && seat === team + 1, action, afterRender, mount, restart};
   window.HBW_ONLINE = api;
 })();

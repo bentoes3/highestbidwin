@@ -4,6 +4,7 @@ import { onRequestPost } from '../functions/api/room.js';
 
 class FakeD1 {
   rooms = new Map();
+  presence = new Map();
 
   prepare(sql) {
     const db = this;
@@ -12,12 +13,58 @@ class FakeD1 {
     return {
       bind(...values) { args = values; return this; },
       async first() {
+        if (query.startsWith('SELECT * FROM ROOM_PRESENCE WHERE CODE = ?')) {
+          const row = db.presence.get(args[0]);
+          return row ? { ...row } : null;
+        }
         assert.match(query, /^SELECT \* FROM ROOMS WHERE CODE = \?/);
         const row = db.rooms.get(args[0]);
         return row ? { ...row } : null;
       },
       async run() {
         if (query.startsWith('CREATE TABLE') || query.startsWith('CREATE INDEX')) return { meta: { changes: 0 } };
+        if (query.startsWith('INSERT INTO ROOM_PRESENCE')) {
+          const [code, seat1_seen_at] = args;
+          db.presence.set(code, { code, seat1_seen_at, seat2_seen_at: null });
+          return { meta: { changes: 1 } };
+        }
+        if (query.startsWith('INSERT OR IGNORE INTO ROOM_PRESENCE')) {
+          const [code, seat1_seen_at, seat2_seen_at] = args;
+          if (db.presence.has(code)) return { meta: { changes: 0 } };
+          db.presence.set(code, { code, seat1_seen_at, seat2_seen_at });
+          return { meta: { changes: 1 } };
+        }
+        if (query === 'UPDATE ROOM_PRESENCE SET SEAT2_SEEN_AT = ? WHERE CODE = ?') {
+          const [seen, code] = args;
+          const row = db.presence.get(code);
+          if (!row) return { meta: { changes: 0 } };
+          row.seat2_seen_at = seen;
+          return { meta: { changes: 1 } };
+        }
+        if (query.startsWith('UPDATE ROOM_PRESENCE SET SEAT1_SEEN_AT')) {
+          const [seen, code, before] = args;
+          const row = db.presence.get(code);
+          if (!row || row.seat1_seen_at >= before) return { meta: { changes: 0 } };
+          row.seat1_seen_at = seen;
+          return { meta: { changes: 1 } };
+        }
+        if (query.startsWith('UPDATE ROOM_PRESENCE SET SEAT2_SEEN_AT')) {
+          const [seen, code, before] = args;
+          const row = db.presence.get(code);
+          if (!row || (row.seat2_seen_at != null && row.seat2_seen_at >= before)) return { meta: { changes: 0 } };
+          row.seat2_seen_at = seen;
+          return { meta: { changes: 1 } };
+        }
+        if (query.startsWith('DELETE FROM ROOM_PRESENCE WHERE CODE IN')) {
+          let changes = 0;
+          for (const [code, row] of db.rooms) {
+            if (row.expires_at <= args[0] && db.presence.delete(code)) changes++;
+          }
+          return { meta: { changes } };
+        }
+        if (query.startsWith('DELETE FROM ROOM_PRESENCE WHERE CODE = ?')) {
+          return { meta: { changes: db.presence.delete(args[0]) ? 1 : 0 } };
+        }
         if (query.startsWith('INSERT OR IGNORE INTO ROOMS')) {
           const [code, sport, mode, seat1_hash, state, created_at, expires_at] = args;
           if (db.rooms.has(code)) return { meta: { changes: 0 } };
@@ -212,4 +259,112 @@ test('expired rooms cannot be resumed and are cleared when a new room is created
   } finally {
     Date.now = originalNow;
   }
+});
+
+test('a hidden or closed player pauses a joined room after one minute and reconnecting resumes it', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+    const guest = (await call(db, { op: 'join', code: host.code })).body;
+    assert.deepEqual(guest.presence, { inactive: [false, false], paused: false });
+    assert.equal(db.rooms.get(host.code).version, guest.version);
+
+    Date.now = () => start + 59_000;
+    const before = await call(db, { op: 'sync', code: host.code, token: host.token, visible: true });
+    assert.deepEqual(before.body.presence, { inactive: [false, false], paused: false });
+    assert.equal(before.body.version, guest.version);
+    assert.equal(db.rooms.get(host.code).version, guest.version);
+
+    Date.now = () => start + 60_000;
+    const away = await call(db, { op: 'sync', code: host.code, token: host.token, visible: true });
+    assert.deepEqual(away.body.presence, { inactive: [false, true], paused: true });
+    const hidden = await call(db, { op: 'sync', code: host.code, token: guest.token, visible: false });
+    assert.deepEqual(hidden.body.presence, away.body.presence);
+    const stopped = await call(db, { op: 'action', code: host.code, token: host.token,
+      version: guest.version, action: { type: 'toss' } });
+    assert.equal(stopped.status, 409);
+    assert.match(stopped.body.error, /paused/i);
+    assert.deepEqual(stopped.body.presence, away.body.presence);
+    assert.equal(stopped.body.version, guest.version);
+    assert.equal(stopped.body.state.phase, 'toss-ready');
+    assert.deepEqual(stopped.body.state.teams.map(team => team.money), [20, 20]);
+    assert.equal(db.rooms.get(host.code).version, guest.version);
+
+    const back = await call(db, { op: 'sync', code: host.code, token: guest.token, visible: true });
+    assert.deepEqual(back.body.presence, { inactive: [false, false], paused: false });
+    assert.equal(back.body.version, guest.version);
+    const resumed = await call(db, { op: 'action', code: host.code, token: host.token,
+      version: guest.version, action: { type: 'toss' } });
+    assert.equal(resumed.status, 200);
+    assert.equal(resumed.body.state.phase, 'tossing');
+    assert.deepEqual(resumed.body.state.teams.map(team => team.money), [20, 20]);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('inactivity can pause either seat; legacy visible polls and joining again restore presence', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const host = (await call(db, { op: 'create', sport: 'basketball', mode: 'current' })).body;
+    const guest = (await call(db, { op: 'join', code: host.code })).body;
+    Date.now = () => start + 45_000;
+    // Old clients omit `visible`; they still count as active until upgraded.
+    await call(db, { op: 'sync', code: host.code, token: host.token });
+    await call(db, { op: 'sync', code: host.code, token: guest.token, visible: true });
+
+    Date.now = () => start + 91_000;
+    const activeGuest = await call(db, { op: 'sync', code: host.code, token: guest.token, visible: true });
+    assert.deepEqual(activeGuest.body.presence, { inactive: [false, false], paused: false });
+    Date.now = () => start + 105_000;
+    const hostGone = await call(db, { op: 'sync', code: host.code, token: guest.token, visible: true });
+    assert.deepEqual(hostGone.body.presence, { inactive: [true, false], paused: true });
+    assert.equal(hostGone.body.version, guest.version);
+
+    // A retry with the same private token restores the seat, without
+    // changing its identity or the room's action version.
+    const returned = await call(db, { op: 'sync', code: host.code, token: host.token });
+    assert.deepEqual(returned.body.presence, { inactive: [false, false], paused: false });
+    assert.equal(returned.body.version, guest.version);
+    Date.now = () => start + 166_000;
+    await call(db, { op: 'sync', code: host.code, token: host.token });
+    const guestGone = await call(db, { op: 'sync', code: host.code, token: guest.token, visible: false });
+    assert.deepEqual(guestGone.body.presence, { inactive: [false, true], paused: true });
+    const rejoined = await call(db, { op: 'join', code: host.code, token: guest.token });
+    assert.equal(rejoined.status, 200);
+    assert.deepEqual(rejoined.body.presence, { inactive: [false, false], paused: false });
+    assert.equal(rejoined.body.version, guest.version);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('existing rooms gain presence on first sync without changing game state', async () => {
+  const db = new FakeD1();
+  const host = (await call(db, { op: 'create', sport: 'football', mode: 'prime' })).body;
+  const guest = (await call(db, { op: 'join', code: host.code })).body;
+  db.presence.delete(host.code);
+  const restored = await call(db, { op: 'sync', code: host.code, token: host.token });
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.version, guest.version);
+  assert.deepEqual(restored.body.presence, { inactive: [false, false], paused: false });
+  assert.deepEqual(restored.body.state.teams.map(team => team.money), [20, 20]);
+});
+
+test('rejoining an existing seat repairs a missing guest heartbeat', async () => {
+  const db = new FakeD1();
+  const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+  const guest = (await call(db, { op: 'join', code: host.code })).body;
+  db.presence.get(host.code).seat2_seen_at = null;
+  const retry = await call(db, { op: 'join', code: host.code, token: guest.token });
+  assert.equal(retry.status, 200);
+  assert.equal(retry.body.version, guest.version);
+  assert.deepEqual(retry.body.presence, { inactive: [false, false], paused: false });
+  assert.equal(typeof db.presence.get(host.code).seat2_seen_at, 'number');
 });

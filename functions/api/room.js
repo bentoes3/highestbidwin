@@ -9,6 +9,8 @@ import { PLAYER_POOLS } from '../_shared/player-pools.mjs';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const ROOM_LIFETIME_MS = 3 * 60 * 60 * 1000;
+const INACTIVE_AFTER_MS = 60 * 1000;
+const HEARTBEAT_WRITE_INTERVAL_MS = 15 * 1000;
 const MAX_BODY_LENGTH = 2048;
 let schemaPromise;
 
@@ -71,6 +73,13 @@ async function ensureSchema(db) {
         expires_at INTEGER NOT NULL
       )`).run();
       await db.prepare('CREATE INDEX IF NOT EXISTS rooms_expires_at ON rooms(expires_at)').run();
+      // Keep liveness separate from game state. Polls must not change the
+      // action version or make an otherwise valid bid appear stale.
+      await db.prepare(`CREATE TABLE IF NOT EXISTS room_presence (
+        code TEXT PRIMARY KEY,
+        seat1_seen_at INTEGER NOT NULL,
+        seat2_seen_at INTEGER
+      )`).run();
     })().catch(error => {
       schemaPromise = undefined;
       throw error;
@@ -101,16 +110,55 @@ async function readRoom(db, code, now) {
   return { error: fail('The room changed just now. Please try again.', 409) };
 }
 
-function roomResponse(row, state, seat, token) {
+async function readPresence(db, row, now) {
+  let presence = await db.prepare('SELECT * FROM room_presence WHERE code = ?').bind(row.code).first();
+  if (!presence) {
+    // Rooms created before this additive table was deployed can continue.
+    await db.prepare(`INSERT OR IGNORE INTO room_presence
+      (code, seat1_seen_at, seat2_seen_at) VALUES (?, ?, ?)`)
+      .bind(row.code, now, row.seat2_hash ? now : null).run();
+    presence = await db.prepare('SELECT * FROM room_presence WHERE code = ?').bind(row.code).first();
+  }
+  return presence;
+}
+
+async function touchPresence(db, row, seat, now, presence) {
+  const column = seat === 1 ? 'seat1_seen_at' : 'seat2_seen_at';
+  if (presence[column] != null && now - presence[column] < HEARTBEAT_WRITE_INTERVAL_MS) return presence;
+  const result = await db.prepare(`UPDATE room_presence SET ${column} = ?
+    WHERE code = ? AND (${column} IS NULL OR ${column} < ?)`)
+    .bind(now, row.code, now - HEARTBEAT_WRITE_INTERVAL_MS).run();
+  if (result.meta.changes === 1) {
+    presence[column] = now;
+    return presence;
+  }
+  // Another tab for this seat may have refreshed it first.
+  return readPresence(db, row, now);
+}
+
+function publicPresence(row, state, presence, now) {
+  const inactive = [
+    now - presence.seat1_seen_at >= INACTIVE_AFTER_MS,
+    !!row.seat2_hash && (presence.seat2_seen_at == null || now - presence.seat2_seen_at >= INACTIVE_AFTER_MS),
+  ];
+  return { inactive, paused: !!row.seat2_hash && state.phase !== 'done' && inactive.some(Boolean) };
+}
+
+function roomPayload(row, state, seat, presence, now, token) {
   const result = {
     code: row.code,
     seat,
     joined: !!row.seat2_hash,
     version: row.version,
     state: publicRoomState(state),
+    presence: publicPresence(row, state, presence, now),
   };
   if (token) result.token = token;
-  return json(result);
+  return result;
+}
+
+function roomResponse(row, state, seat, presence, now, token) {
+  return json(roomPayload(row, state, seat, presence, now, token));
 }
 
 async function authenticatedRoom(db, body, now) {
@@ -131,6 +179,7 @@ async function create(db, body, now) {
   if (!pool) return fail('Choose a valid sport and game mode.', 400);
 
   // A new room is a natural opportunity to clear old private tokens and game state.
+  await db.prepare('DELETE FROM room_presence WHERE code IN (SELECT code FROM rooms WHERE expires_at <= ?)').bind(now).run();
   await db.prepare('DELETE FROM rooms WHERE expires_at <= ?').bind(now).run();
   const state = createRoomState({ sport, mode, pool, now, rng: secureRandom });
   const token = randomToken();
@@ -143,7 +192,10 @@ async function create(db, body, now) {
       VALUES (?, ?, ?, ?, NULL, ?, 0, ?, ?)`)
       .bind(code, sport, mode, tokenHash, JSON.stringify(state), now, now + ROOM_LIFETIME_MS).run();
     if (result.meta.changes === 1) {
-      return roomResponse({ code, seat2_hash: null, version: 0 }, state, 1, token);
+      await db.prepare(`INSERT INTO room_presence (code, seat1_seen_at, seat2_seen_at)
+        VALUES (?, ?, NULL)`).bind(code, now).run();
+      return roomResponse({ code, seat2_hash: null, version: 0 }, state, 1,
+        { seat1_seen_at: now, seat2_seen_at: null }, now, token);
     }
   }
   return fail('Could not create a room right now. Please try again.', 503);
@@ -162,7 +214,10 @@ async function join(db, body, now) {
     const { row, state } = loaded;
     // A retry with the same private token must recover Player 2 if the first
     // join succeeded but its response was lost in transit.
-    if (row.seat2_hash === tokenHash) return roomResponse(row, state, 2, token);
+    if (row.seat2_hash === tokenHash) {
+      const presence = await touchPresence(db, row, 2, now, await readPresence(db, row, now));
+      return roomResponse(row, state, 2, presence, now, token);
+    }
     if (row.seat2_hash) return fail('This room already has two players.', 409);
     state.version = row.version + 1;
     const nextState = JSON.stringify(state);
@@ -171,7 +226,11 @@ async function join(db, body, now) {
       WHERE code = ? AND seat2_hash IS NULL AND version = ?`)
       .bind(tokenHash, nextState, code, row.version).run();
     if (result.meta.changes === 1) {
-      return roomResponse({ ...row, seat2_hash: tokenHash, state: nextState, version: row.version + 1 }, state, 2, token);
+      const joinedRow = { ...row, seat2_hash: tokenHash, state: nextState, version: row.version + 1 };
+      await readPresence(db, joinedRow, now);
+      await db.prepare('UPDATE room_presence SET seat2_seen_at = ? WHERE code = ?')
+        .bind(now, code).run();
+      return roomResponse(joinedRow, state, 2, await readPresence(db, joinedRow, now), now, token);
     }
   }
   return fail('The room changed just now. Please try again.', 409);
@@ -180,7 +239,11 @@ async function join(db, body, now) {
 async function sync(db, body, now) {
   const loaded = await authenticatedRoom(db, body, now);
   if (loaded.error) return loaded.error;
-  return roomResponse(loaded.row, loaded.state, loaded.seat);
+  let presence = await readPresence(db, loaded.row, now);
+  // Older clients omit `visible` and only poll while their tab is active.
+  if (body.visible !== false) presence = await touchPresence(db, loaded.row, loaded.seat, now, presence);
+  return roomResponse(loaded.row, loaded.state, loaded.seat,
+    presence, now);
 }
 
 async function action(db, body, now) {
@@ -190,20 +253,27 @@ async function action(db, body, now) {
   const loaded = await authenticatedRoom(db, body, now);
   if (loaded.error) return loaded.error;
   const { row, state, seat } = loaded;
-  if (!row.seat2_hash) return fail('Wait for your friend to join before starting.', 409);
+  const presence = await touchPresence(db, row, seat, now, await readPresence(db, row, now));
+  if (!row.seat2_hash) return json({ error: 'Wait for your friend to join before starting.',
+    ...roomPayload(row, state, seat, presence, now) }, 409);
+  if (publicPresence(row, state, presence, now).paused) {
+    return json({ error: 'Game paused while a player is away.',
+      ...roomPayload(row, state, seat, presence, now) }, 409);
+  }
   if (body.version !== row.version) {
     return json({ error: 'The room has moved on. Your screen is updating.',
-      code: row.code, seat, joined: true, version: row.version, state: publicRoomState(state) }, 409);
+      ...roomPayload(row, state, seat, presence, now) }, 409);
   }
 
   try {
     applyRoomAction(state, seat - 1, body.action, { now, rng: secureRandom });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : 'This move is not available now.', 409);
+    return json({ error: error instanceof Error ? error.message : 'This move is not available now.',
+      ...roomPayload(row, state, seat, presence, now) }, 409);
   }
 
   const nextState = JSON.stringify(state);
-  if (nextState === row.state) return roomResponse(row, state, seat);
+  if (nextState === row.state) return roomResponse(row, state, seat, presence, now);
   const result = await db.prepare(`UPDATE rooms
     SET state = ?, version = version + 1, expires_at = ?
     WHERE code = ? AND version = ?`)
@@ -212,10 +282,9 @@ async function action(db, body, now) {
     const latest = await readRoom(db, row.code, now);
     if (latest.error) return latest.error;
     return json({ error: 'The room has moved on. Your screen is updating.',
-      code: row.code, seat, joined: true, version: latest.row.version,
-      state: publicRoomState(latest.state) }, 409);
+      ...roomPayload(latest.row, latest.state, seat, await readPresence(db, latest.row, now), now) }, 409);
   }
-  return roomResponse({ ...row, state: nextState, version: row.version + 1 }, state, seat);
+  return roomResponse({ ...row, state: nextState, version: row.version + 1 }, state, seat, presence, now);
 }
 
 async function leave(db, body, now) {
@@ -223,9 +292,12 @@ async function leave(db, body, now) {
   if (loaded.error) return loaded.error;
   const { row, seat } = loaded;
   if (seat === 1 && !row.seat2_hash) {
-    await db.prepare(`DELETE FROM rooms
+    const removed = await db.prepare(`DELETE FROM rooms
       WHERE code = ? AND seat1_hash = ? AND seat2_hash IS NULL AND version = ?`)
       .bind(row.code, row.seat1_hash, row.version).run();
+    if (removed.meta.changes === 1) {
+      await db.prepare('DELETE FROM room_presence WHERE code = ?').bind(row.code).run();
+    }
   }
   return json({ left: true });
 }

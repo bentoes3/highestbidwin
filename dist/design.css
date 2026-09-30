@@ -472,10 +472,61 @@ html.glass-design .online-status-dot {
 }
 html.glass-design .online-room-status[data-state="disconnected"] .online-status-dot { background: #ff727d; box-shadow: 0 0 8px #ff727d88; }
 html.glass-design .online-room-status[data-state="waiting"] .online-status-dot { background: #f2c66d; box-shadow: 0 0 8px #f2c66d88; }
+html.glass-design .online-room-status[data-state="paused"] .online-status-dot { background: #f2c66d; box-shadow: 0 0 8px #f2c66d88; }
 html.glass-design .online-room-status[hidden],
 html.glass-design .online-entry[hidden],
 html.glass-design .online-room-waiting[hidden],
-html.glass-design .online-error[hidden] { display: none !important; }
+html.glass-design .online-error[hidden],
+html.glass-design .online-pause-notice[hidden] { display: none !important; }
+
+/* Paused rooms cover the auction without shifting the fitted game board. */
+html.glass-design #game .online-pause-notice {
+  position: absolute;
+  z-index: 8;
+  inset: 39px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid rgba(var(--glass-accent-rgb), .28);
+  border-radius: 17px;
+  background: radial-gradient(circle at 50% 25%, rgba(var(--glass-accent-rgb), .11), transparent 54%), rgba(11, 18, 15, .975);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), 0 16px 45px #0007;
+  color: var(--glass-text);
+  text-align: center;
+}
+html.glass-design body[data-sport="basketball"] #game .online-pause-notice {
+  background: radial-gradient(circle at 50% 25%, rgba(var(--glass-accent-rgb), .12), transparent 54%), rgba(24, 16, 13, .975);
+}
+html.glass-design .online-pause-kicker {
+  color: var(--glass-accent);
+  font: 600 10px 'JetBrains Mono', monospace;
+  letter-spacing: .13em;
+}
+html.glass-design .online-pause-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(var(--glass-accent-rgb), .5);
+  border-radius: 50%;
+  background: rgba(var(--glass-accent-rgb), .09);
+  box-shadow: 0 0 35px rgba(var(--glass-accent-rgb), .13);
+  color: var(--glass-accent);
+  font: 700 36px/1 'Space Grotesk', Barlow, Arial, sans-serif;
+}
+html.glass-design #online-pause-title {
+  color: var(--glass-text);
+  font: 700 clamp(23px, 2.5vw, 32px)/1.1 'Space Grotesk', Barlow, Arial, sans-serif;
+  letter-spacing: -.045em;
+}
+html.glass-design #online-pause-copy {
+  max-width: 27ch;
+  color: var(--muted);
+  font: 500 14px/1.5 'Space Grotesk', Barlow, Arial, sans-serif;
+}
 
 /* Private-room setup stays in a modal so the home and game heights do not jump. */
 html.glass-design #online-dialog {
@@ -580,6 +631,10 @@ html.glass-design .online-error { color: #ff999f; }
   html.glass-design .online-room-status { margin-left: auto; max-width: 115px; padding: 5px 8px; font-size: 9px; }
   html.glass-design .round-bar:has(.online-room-status:not([hidden])) #signed-count { display: none; }
   html.glass-design #online-dialog { padding: 22px 18px; }
+  html.glass-design #game .online-pause-notice { inset: 32px 6px 6px; gap: 9px; padding: 15px; border-radius: 12px; }
+  html.glass-design .online-pause-mark { width: 54px; height: 54px; font-size: 29px; }
+  html.glass-design #online-pause-title { font-size: 24px; }
+  html.glass-design #online-pause-copy { font-size: 12px; }
 }
 
 @media (max-width: 360px) {
