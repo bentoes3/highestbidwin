@@ -1,0 +1,135 @@
+/* The five-player boards stay inside the fixed gameplay viewport. */
+#game .team-head small { display: none; }
+
+#game .budget-area > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+#game .budget-area .tiny-label {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  white-space: nowrap;
+}
+
+#game .budget { line-height: 1; }
+
+#game .roster-heading {
+  align-items: center;
+  gap: 8px;
+  padding: 2px 16px 9px;
+  font-size: 10px;
+  letter-spacing: 1.3px;
+}
+
+#game .roster-heading span:last-child { white-space: nowrap; }
+
+#game .roster {
+  margin-inline: 12px;
+  gap: 8px;
+}
+
+#game .roster-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 11px;
+  min-width: 0;
+  padding: 7px 11px;
+}
+
+#game .slot-label {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--team-color) 12%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1px;
+}
+
+#game .empty .slot-label {
+  color: var(--muted);
+  background: rgba(255, 255, 255, .035);
+}
+
+#game .roster-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 1.15;
+  font-weight: 650;
+}
+
+#game .roster-name small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.15;
+  letter-spacing: .15px;
+}
+
+#game .roster-score { line-height: 1; }
+#game .move-hint { font-size: 17px; }
+
+#game .team-total {
+  min-height: 29px;
+  padding: 6px 15px;
+}
+
+@media (min-width: 761px) and (max-height: 680px) {
+  #game .roster { gap: 5px; }
+  #game .roster-row { padding-block: 4px; }
+  #game .slot-label { width: 26px; height: 26px; }
+  #game .roster-row { grid-template-columns: 26px minmax(0, 1fr) auto; }
+}
+
+@media (max-width: 760px) {
+  #game .budget-area > div { gap: 3px; }
+  #game .budget-area .tiny-label { font-size: 9px; letter-spacing: .7px; }
+  #game .roster { margin-inline: 5px; gap: 3px; }
+  #game .roster-row {
+    grid-template-columns: 21px minmax(0, 1fr) auto;
+    column-gap: 5px;
+    padding: 2px 5px;
+  }
+  #game .slot-label {
+    width: 21px;
+    height: 21px;
+    border-radius: 5px;
+    font-size: 9px;
+  }
+  #game .roster-name { font-size: 11px; line-height: 1.15; }
+  #game .roster-name small { display: none; }
+  #game .roster-score { font-size: 16px; }
+  #game .move-hint { font-size: 13px; }
+  #game .team-total { min-height: 20px; padding: 2px 7px; }
+}
+
+@media (max-width: 760px) and (max-height: 800px) {
+  #game .roster { gap: 2px; }
+  #game .roster-row { padding: 1px 3px; }
+  #game .slot-label { width: 16px; height: 16px; font-size: 8px; }
+  #game .roster-row { grid-template-columns: 16px minmax(0, 1fr) auto; }
+}
+
+@media (max-width: 760px) and (max-height: 660px) {
+  #game .roster-row { padding-block: 0; }
+  #game .slot-label { width: 13px; height: 13px; }
+  #game .roster-row { grid-template-columns: 13px minmax(0, 1fr) auto; }
+}
+
+@media (max-width: 360px) {
+  #game .roster-row { column-gap: 3px; padding-inline: 3px; }
+  #game .roster-name { font-size: 10px; }
+}

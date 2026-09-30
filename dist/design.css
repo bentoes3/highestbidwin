@@ -1,0 +1,412 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/* Permanent Obsidian & Lime / Orange visual layer. */
+:root.glass-design {
+  --bg: #080c0b;
+  --panel: #121a16;
+  --line: rgba(255, 255, 255, .12);
+  --muted: #a9b5aa;
+  --lime: #ccff00;
+  --glass-accent: #ccff00;
+  --glass-accent-rgb: 204, 255, 0;
+  --glass-text: #f3f7ee;
+  color: var(--glass-text);
+  background: var(--bg);
+  font-family: 'Space Grotesk', Barlow, Arial, sans-serif;
+}
+
+:root.glass-design:has(body[data-sport="basketball"]) {
+  --bg: #0e0b0a;
+  --panel: #1b1411;
+  --line: rgba(255, 255, 255, .12);
+  --muted: #c2afa5;
+  --lime: #ffad66;
+  --glass-accent: #ffad66;
+  --glass-accent-rgb: 255, 173, 102;
+  --glass-text: #fff4eb;
+}
+
+html.glass-design body {
+  color: var(--glass-text);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 53% 55% at 90% 3%, rgba(var(--glass-accent-rgb), .14), transparent 72%),
+    radial-gradient(ellipse 39% 39% at 2% 84%, rgba(var(--glass-accent-rgb), .075), transparent 78%),
+    linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px),
+    linear-gradient(145deg, #0b1210, var(--bg) 60%);
+  background-size: auto, auto, 48px 48px, 48px 48px, auto;
+  isolation: isolate;
+}
+
+html.glass-design body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: .055;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
+  mix-blend-mode: screen;
+}
+
+html.glass-design header {
+  background: rgba(9, 15, 12, .68);
+  border-bottom-color: rgba(255, 255, 255, .10);
+  box-shadow: 0 1px 0 rgba(var(--glass-accent-rgb), .12), 0 12px 45px #0003;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design .brand-mark {
+  text-shadow: 0 0 22px rgba(var(--glass-accent-rgb), .18);
+}
+
+html.glass-design .brand-edition,
+html.glass-design .local-label,
+html.glass-design .eyebrow,
+html.glass-design .preview-label,
+html.glass-design .mode-kicker,
+html.glass-design .mode-meta,
+html.glass-design .choice-top,
+html.glass-design .sport-meta,
+html.glass-design .tiny-label,
+html.glass-design .pill,
+html.glass-design .slot-label,
+html.glass-design .auction-top,
+html.glass-design .game-info,
+html.glass-design .phase,
+html.glass-design .roster-heading,
+html.glass-design .card-meta,
+html.glass-design footer {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+html.glass-design .brand-edition {
+  border-left-color: rgba(255, 255, 255, .20);
+}
+
+html.glass-design h1,
+html.glass-design .selector-heading h2,
+html.glass-design .choice-copy h2,
+html.glass-design .mode-heading h2,
+html.glass-design .mode-card h3,
+html.glass-design .team-head h2,
+html.glass-design .result-panel h2,
+html.glass-design dialog h2 {
+  font-family: 'Space Grotesk', Barlow, Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: -.045em;
+}
+
+html.glass-design .home-copy h1,
+html.glass-design .selector-intro h1 {
+  letter-spacing: -.065em;
+}
+
+/* A floating shell on the selection screens; no game geometry is touched. */
+html.glass-design .sport-selector main,
+html.glass-design body:has(#home:not([hidden])) main {
+  border-radius: 1.5rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .027), rgba(255, 255, 255, .008) 55%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .075), 0 25px 80px #0004;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design .selector-intro,
+html.glass-design .home-hero,
+html.glass-design .home-rules {
+  border-color: rgba(255, 255, 255, .12);
+}
+
+html.glass-design .selector-intro p,
+html.glass-design .choice-copy p,
+html.glass-design .home-copy > p,
+html.glass-design .mode-card p {
+  color: #bfc9be;
+}
+
+html.glass-design .preview-label,
+html.glass-design .pill,
+html.glass-design .quiet {
+  background: rgba(255, 255, 255, .035);
+  border-color: rgba(255, 255, 255, .16);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design .quiet {
+  border-radius: 9999px;
+  color: var(--glass-text);
+}
+
+html.glass-design .quiet:hover,
+html.glass-design .sport-switch:hover {
+  border-color: rgba(var(--glass-accent-rgb), .55);
+  box-shadow: 0 0 20px rgba(var(--glass-accent-rgb), .10);
+}
+
+/* The two sport choices already form a bento grid. Their artwork becomes a lit panel. */
+html.glass-design .sport-choice {
+  --sport-accent: #ccff00;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 1.5rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 20px 48px #0004;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design .basketball-choice {
+  --sport-accent: #ffad66;
+}
+
+html.glass-design .sport-choice:hover {
+  border-color: color-mix(in srgb, var(--sport-accent) 70%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 18px 55px #0008, 0 0 38px color-mix(in srgb, var(--sport-accent) 14%, transparent);
+}
+
+html.glass-design .sport-art {
+  border-color: color-mix(in srgb, var(--sport-accent) 28%, transparent);
+  border-radius: 1rem;
+  background-image:
+    radial-gradient(ellipse at 15% 70%, color-mix(in srgb, var(--sport-accent) 19%, transparent), transparent 64%),
+    linear-gradient(rgba(255, 255, 255, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .055) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
+  box-shadow: inset 0 0 35px color-mix(in srgb, var(--sport-accent) 5%, transparent);
+}
+
+html.glass-design .art-word {
+  opacity: .55;
+  text-shadow: 0 0 28px color-mix(in srgb, var(--sport-accent) 28%, transparent);
+}
+
+html.glass-design .choice-cta {
+  border-top-color: rgba(255, 255, 255, .12);
+}
+
+html.glass-design .sport-choice:hover .choice-cta {
+  text-shadow: 0 0 16px color-mix(in srgb, var(--sport-accent) 25%, transparent);
+}
+
+/* The mode cards and hero keep their existing sizes and actions. */
+html.glass-design .mode-card {
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 1.5rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 14px 40px #0003;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design .mode-card.selected,
+html.glass-design body[data-sport="basketball"] .mode-card.selected {
+  background: radial-gradient(ellipse at 95% 5%, rgba(var(--glass-accent-rgb), .105), transparent 62%), rgba(255, 255, 255, .045);
+  border-color: rgba(var(--glass-accent-rgb), .72);
+  box-shadow: inset 0 0 0 1px rgba(var(--glass-accent-rgb), .12), 0 0 32px rgba(var(--glass-accent-rgb), .09);
+}
+
+html.glass-design .mode-card:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 22px 44px #0006, 0 0 28px rgba(var(--glass-accent-rgb), .08);
+}
+
+html.glass-design .float-anim,
+html.glass-design .hero-cards {
+  animation: float 6.5s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+html.glass-design .hero-front {
+  box-shadow: 0 22px 55px #0008, 0 0 38px rgba(var(--glass-accent-rgb), .20);
+}
+
+html.glass-design .hero-back {
+  box-shadow: 0 16px 45px #0008;
+}
+
+html.glass-design .primary {
+  background-color: var(--glass-accent);
+  border-color: var(--glass-accent);
+  color: #000;
+  font-family: 'Space Grotesk', Barlow, Arial, sans-serif;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 1rem 2rem;
+  box-shadow: 0 0 30px rgba(var(--glass-accent-rgb), .3);
+  transition: background .18s, color .18s, box-shadow .22s, scale .22s, transform .18s;
+}
+
+html.glass-design .primary.secondary,
+html.glass-design body[data-sport="basketball"] .primary.secondary {
+  background: rgba(255, 255, 255, .045);
+  color: var(--glass-accent);
+  border-color: rgba(var(--glass-accent-rgb), .42);
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.glass-design .primary:not(:disabled):hover { scale: 1.05; }
+  html.glass-design #game .primary:not(:disabled):hover { scale: 1.025; }
+}
+
+/* Gameplay panels receive only paint changes so the fixed auction tracks stay put. */
+html.glass-design #game .team,
+html.glass-design #game .auction,
+html.glass-design .result-panel {
+  background: rgba(255, 255, 255, .03);
+  border-color: rgba(255, 255, 255, .11);
+  border-radius: 1.5rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .065), 0 18px 45px #0005;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design #game .team {
+  border-top-color: var(--team-color);
+}
+
+html.glass-design #game .team.active-turn {
+  border-color: var(--team-color);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--team-color) 16%, transparent), transparent 70%), rgba(255, 255, 255, .045);
+  box-shadow: 0 0 0 1px var(--team-color), 0 0 32px color-mix(in srgb, var(--team-color) 22%, transparent), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+
+html.glass-design #game .team.lineup-ready {
+  border-color: var(--team-color);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--team-color) 12%, transparent), transparent 70%), rgba(255, 255, 255, .04);
+}
+
+html.glass-design #game .active-turn .team-head {
+  background: color-mix(in srgb, var(--team-color) 10%, transparent);
+}
+
+html.glass-design #game .auction[data-player="1"] { border-color: color-mix(in srgb, var(--blue) 55%, rgba(255, 255, 255, .1)); }
+html.glass-design #game .auction[data-player="2"] { border-color: color-mix(in srgb, var(--orange) 55%, rgba(255, 255, 255, .1)); }
+html.glass-design #game .auction[data-phase="lineup"] {
+  border-color: var(--glass-accent);
+  background: radial-gradient(ellipse at 50% 30%, rgba(var(--glass-accent-rgb), .13), transparent 66%), rgba(255, 255, 255, .035);
+}
+
+html.glass-design #game .roster-row {
+  background: rgba(255, 255, 255, .035);
+  border-color: rgba(255, 255, 255, .10);
+  border-radius: .75rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+
+html.glass-design #game .roster-row.empty {
+  background: rgba(255, 255, 255, .012);
+  border-color: rgba(255, 255, 255, .075);
+}
+
+html.glass-design #game .roster-row.selected-slot,
+html.glass-design #game .roster-row.drop-target,
+html.glass-design #game .roster-row.dragging-player-tab {
+  border-color: var(--team-color);
+}
+
+html.glass-design #game .roster-row.selected-slot {
+  background: color-mix(in srgb, var(--team-color) 18%, #101612);
+  box-shadow: inset 3px 0 var(--team-color);
+}
+
+html.glass-design #game .roster-row.drop-target {
+  background: color-mix(in srgb, var(--team-color) 25%, #101612);
+}
+
+html.glass-design #game .roster-row.dragging-player-tab {
+  background: color-mix(in srgb, var(--team-color) 14%, #101612);
+}
+
+html.glass-design #game .pill {
+  border-radius: 9999px;
+  background: rgba(var(--glass-accent-rgb), .075);
+  border-color: rgba(var(--glass-accent-rgb), .25);
+}
+
+html.glass-design #game .player-card {
+  border-radius: 1.125rem;
+  box-shadow: 0 18px 50px #0009, 0 0 38px rgba(var(--glass-accent-rgb), .16), inset 0 0 0 5px var(--glass-accent), inset 0 0 0 6px #27370c33;
+}
+
+html.glass-design .result-panel {
+  border-color: rgba(var(--glass-accent-rgb), .5);
+  background: radial-gradient(ellipse at 50% 0%, rgba(var(--glass-accent-rgb), .11), transparent 70%), rgba(255, 255, 255, .045);
+  box-shadow: 0 0 46px rgba(var(--glass-accent-rgb), .12), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+
+html.glass-design dialog,
+html.glass-design body[data-sport="basketball"] dialog {
+  color: var(--glass-text);
+  background: rgba(15, 22, 18, .94);
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 100px #000b, 0 0 40px rgba(var(--glass-accent-rgb), .09);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html.glass-design body[data-sport="basketball"] dialog {
+  background: rgba(25, 17, 14, .94);
+}
+
+html.glass-design dialog::backdrop {
+  background: rgba(2, 5, 3, .75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@media (max-width: 760px) {
+  html.glass-design .sport-selector main,
+  html.glass-design body:has(#home:not([hidden])) main {
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  html.glass-design .sport-choice,
+  html.glass-design .mode-card,
+  html.glass-design #game .team,
+  html.glass-design #game .auction { border-radius: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.glass-design .float-anim,
+  html.glass-design .hero-cards { animation: none; }
+  html.glass-design .primary { transition: none; }
+}
+
+/* The sport pages share the chooser's header, left edge and headline baseline. */
+@media (min-width: 761px) {
+  html.glass-design body:has(#home:not([hidden])) .home-copy {
+    align-self: start;
+    padding-top: 28px;
+  }
+  html.glass-design body:has(#home:not([hidden])) .home-copy h1 {
+    font-size: clamp(40px, 6.2vh, 70px);
+  }
+}
+
+@media (min-width: 761px) and (max-height: 700px) {
+  html.glass-design body:has(#home:not([hidden])) .home-copy { padding-top: 24px; }
+  html.glass-design body:has(#home:not([hidden])) .home-copy h1 { font-size: 40px; }
+}
+
+@media (max-width: 760px) {
+  html.glass-design .sport-selector header,
+  html.glass-design body:has(#home:not([hidden])) > header {
+    height: auto;
+    min-height: 68px;
+    padding: 12px 16px;
+  }
+  html.glass-design body:has(#home:not([hidden])) main { padding-inline: 16px; }
+  html.glass-design body:has(#home:not([hidden])) .home-copy { padding-top: 20px; }
+  html.glass-design body:has(#home:not([hidden])) .home-copy h1 { font-size: 40px; }
+}
