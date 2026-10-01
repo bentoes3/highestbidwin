@@ -356,6 +356,7 @@
       if ([404, 410].includes(cause.status)) {
         clear(); reset(); showHome();
         if ($('online-dialog').open) $('online-dialog').close();
+        if (location.search) history.replaceState(null, '', location.pathname);
         homeNotice(cause.message);
         return;
       }
@@ -393,6 +394,7 @@
       reset(); showHome();
       if ([404, 410].includes(cause.status)) {
         if ($('online-dialog').open) $('online-dialog').close();
+        if (location.search) history.replaceState(null, '', location.pathname);
         homeNotice(message);
       } else { showDialog(); error(message); }
     } finally { busy = false; if (api.active) render(); }
@@ -459,6 +461,7 @@
       if ([404, 410].includes(cause.status)) {
         clear(); reset(); showHome();
         if ($('online-dialog').open) $('online-dialog').close();
+        if (location.search) history.replaceState(null, '', location.pathname);
         homeNotice(cause.message);
         return readState();
       }
