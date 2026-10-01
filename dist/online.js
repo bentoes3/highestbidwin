@@ -44,6 +44,7 @@
     box.hidden = !message;
   }
   function status(message) { $('online-dialog-status').textContent = message; }
+  function waitingForFriend() { return api.active && seat === 1 && !joined; }
   function roomLink() { return `${location.origin}/${sport}/?join=${encodeURIComponent(code)}`; }
   function readRecovery() {
     try {
@@ -121,6 +122,8 @@
   function showDialog() {
     error();
     const hasRoom = !!code;
+    $('online-close').hidden = waitingForFriend();
+    $('online-close').disabled = waitingForFriend();
     $('online-entry').hidden = hasRoom;
     $('online-room-waiting').hidden = !hasRoom;
     $('online-dialog-title').textContent = hasRoom ? `Room ${code}` : 'Create a room.';
@@ -135,6 +138,15 @@
       status(joined ? presence.paused ? pauseMessage() + ' Game paused.' : `Player ${seat} · Connected` : 'Waiting for Player 2 to join…');
     } else { status(''); renderRecovery(); }
     if (!$('online-dialog').open) $('online-dialog').showModal();
+  }
+  function showRoomScreen() {
+    const waiting = waitingForFriend();
+    $('home').hidden = !waiting;
+    $('game').hidden = waiting;
+    $('online-close').hidden = waiting;
+    $('online-close').disabled = waiting;
+    if (waiting && (!$('online-dialog').open || !$('online-entry').hidden)) showDialog();
+    if (joined && $('online-dialog').open) $('online-dialog').close();
   }
   function renderRecovery() {
     const invite = new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6);
@@ -257,23 +269,20 @@
     const wasJoined = joined;
     joined = !!data.joined;
     if (!force && data.version <= version) {
+      showRoomScreen();
       if (!wasConnected || presenceChanged || wasJoined !== joined) render();
       else { roomBadge(); pauseView(); }
       if (!presence.paused && ['spinning', 'free-spinning'].includes(state.phase) && !spinLoop) startFakeSpin();
-      if (joined && $('online-dialog').open) $('online-dialog').close();
       return;
     }
     const previous = api.active && version >= 0 ? state : null;
     version = data.version;
     selectedMode = data.state.mode;
     state = {...data.state, revealed: false, revealing: false};
-    $('home').hidden = true;
-    $('game').hidden = false;
+    showRoomScreen();
     render();
     cues(previous, state);
     if (['spinning', 'free-spinning'].includes(state.phase) && !spinLoop) startFakeSpin();
-    if (joined && $('online-dialog').open) $('online-dialog').close();
-    if (!joined && seat === 1) showDialog();
     if (state.phase === 'done' && previous?.phase !== 'done') queueMicrotask(() => showResults());
   }
   function schedulePoll(delay = 1100) {
@@ -417,7 +426,8 @@
     badge.addEventListener('click', showDialog);
     badge.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showDialog(); } });
     $('online-open').onclick = () => { window.HBW_SOUND?.ui(); showDialog(); };
-    $('online-close').onclick = () => $('online-dialog').close();
+    $('online-close').onclick = () => { if (!waitingForFriend()) $('online-dialog').close(); };
+    $('online-dialog').addEventListener('cancel', event => { if (waitingForFriend()) event.preventDefault(); });
     $('online-create').onclick = makeRoom;
     $('online-join-form').onsubmit = joinRoom;
     $('online-code-input').addEventListener('input', event => { event.target.value = event.target.value.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6); });

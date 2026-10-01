@@ -478,6 +478,7 @@ html.glass-design .online-entry[hidden],
 html.glass-design .online-room-waiting[hidden],
 html.glass-design .online-error[hidden],
 html.glass-design .online-pause-notice[hidden] { display: none !important; }
+html.glass-design #online-close[hidden] { display: none !important; }
 
 /* Paused rooms cover the auction without shifting the fitted game board. */
 html.glass-design #game .online-pause-notice {
