@@ -10,6 +10,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 const ROOM_LIFETIME_MS = 3 * 60 * 60 * 1000;
 const INACTIVE_AFTER_MS = 60 * 1000;
+const ABANDONED_AFTER_MS = 15 * 60 * 1000;
 const HEARTBEAT_WRITE_INTERVAL_MS = 15 * 1000;
 const MAX_BODY_LENGTH = 2048;
 let schemaPromise;
@@ -91,8 +92,27 @@ async function ensureSchema(db) {
 async function readRoom(db, code, now) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const row = await db.prepare('SELECT * FROM rooms WHERE code = ?').bind(code).first();
-    if (!row) return { error: fail('Room not found. Check the code and try again.', 404) };
+    if (!row) return { error: fail('This room has ended or expired. Check the code or create a new room.', 410) };
     if (row.expires_at <= now) return { error: fail('This room has expired. Create a new room to play.', 410) };
+
+    const presence = await readPresence(db, row, now);
+    const cutoff = now - ABANDONED_AFTER_MS;
+    if (presence.seat1_seen_at <= cutoff ||
+        (row.seat2_hash && (presence.seat2_seen_at ?? row.created_at) <= cutoff)) {
+      // Recheck timestamps in the DELETE itself: a returning player can refresh
+      // a heartbeat while this request is deciding whether the room is stale.
+      const removed = await db.prepare(`DELETE FROM rooms
+        WHERE code = ? AND version = ? AND EXISTS (
+          SELECT 1 FROM room_presence
+          WHERE room_presence.code = rooms.code AND
+            (seat1_seen_at <= ? OR (seat2_hash IS NOT NULL AND COALESCE(seat2_seen_at, rooms.created_at) <= ?))
+        )`).bind(code, row.version, cutoff, cutoff).run();
+      if (removed.meta.changes === 1) {
+        await db.prepare('DELETE FROM room_presence WHERE code = ?').bind(code).run();
+        return { error: fail('This room ended after a player was away too long. Create a new room to play.', 410) };
+      }
+      continue;
+    }
 
     const state = JSON.parse(row.state);
     advanceRoomTime(state, now);
@@ -130,6 +150,10 @@ async function touchPresence(db, row, seat, now, presence) {
     .bind(now, row.code, now - HEARTBEAT_WRITE_INTERVAL_MS).run();
   if (result.meta.changes === 1) {
     presence[column] = now;
+    // Active rooms may spend hours waiting between bids. Extend the backup
+    // expiry with activity, without changing the auction action version.
+    await db.prepare('UPDATE rooms SET expires_at = ? WHERE code = ? AND expires_at < ?')
+      .bind(now + ROOM_LIFETIME_MS, row.code, now + ROOM_LIFETIME_MS).run();
     return presence;
   }
   // Another tab for this seat may have refreshed it first.
@@ -178,9 +202,14 @@ async function create(db, body, now) {
   const pool = PLAYER_POOLS[sport]?.[mode];
   if (!pool) return fail('Choose a valid sport and game mode.', 400);
 
-  // A new room is a natural opportunity to clear old private tokens and game state.
-  await db.prepare('DELETE FROM room_presence WHERE code IN (SELECT code FROM rooms WHERE expires_at <= ?)').bind(now).run();
-  await db.prepare('DELETE FROM rooms WHERE expires_at <= ?').bind(now).run();
+  // A new room is a natural opportunity to clear expired and abandoned state.
+  const cutoff = now - ABANDONED_AFTER_MS;
+  await db.prepare(`DELETE FROM rooms WHERE expires_at <= ? OR code IN (
+    SELECT rooms.code FROM rooms JOIN room_presence ON room_presence.code = rooms.code
+    WHERE room_presence.seat1_seen_at <= ? OR
+      (rooms.seat2_hash IS NOT NULL AND COALESCE(room_presence.seat2_seen_at, rooms.created_at) <= ?)
+  )`).bind(now, cutoff, cutoff).run();
+  await db.prepare('DELETE FROM room_presence WHERE NOT EXISTS (SELECT 1 FROM rooms WHERE rooms.code = room_presence.code)').run();
   const state = createRoomState({ sport, mode, pool, now, rng: secureRandom });
   const token = randomToken();
   const tokenHash = await hashToken(token);
@@ -302,6 +331,30 @@ async function leave(db, body, now) {
   return json({ left: true });
 }
 
+async function end(db, body) {
+  const code = normalizeCode(body.code);
+  if (!code) return fail('Enter a valid room code.', 400);
+  if (!validToken(body.token)) return fail('Your player session is missing. Rejoin with the room code.', 403);
+  const hash = await hashToken(body.token);
+  const row = await db.prepare('SELECT * FROM rooms WHERE code = ?').bind(code).first();
+  // A repeated end request is successful if the first request already removed it.
+  if (!row) return json({ ended: true });
+  if (hash !== row.seat1_hash && hash !== row.seat2_hash) {
+    return fail('This player session does not belong to the room.', 403);
+  }
+  const removed = await db.prepare(`DELETE FROM rooms
+    WHERE code = ? AND (seat1_hash = ? OR seat2_hash = ?)`)
+    .bind(code, hash, hash).run();
+  if (removed.meta.changes === 1) {
+    await db.prepare('DELETE FROM room_presence WHERE code = ?').bind(code).run();
+    return json({ ended: true });
+  }
+  // Another player can end the same room at the same instant.
+  return (await db.prepare('SELECT * FROM rooms WHERE code = ?').bind(code).first())
+    ? fail('The room changed just now. Please try again.', 409)
+    : json({ ended: true });
+}
+
 export async function onRequestPost({ request, env }) {
   if (!env?.ROOMS_DB) return fail('Online rooms are not configured yet.', 503);
   try {
@@ -319,6 +372,7 @@ export async function onRequestPost({ request, env }) {
     if (body.op === 'sync') return await sync(env.ROOMS_DB, body, now);
     if (body.op === 'action') return await action(env.ROOMS_DB, body, now);
     if (body.op === 'leave') return await leave(env.ROOMS_DB, body, now);
+    if (body.op === 'end') return await end(env.ROOMS_DB, body);
     return fail('Choose a valid room request.', 400);
   } catch {
     return fail('Online rooms are temporarily unavailable. Please try again.', 503);

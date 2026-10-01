@@ -4,13 +4,13 @@
   const sport = document.body.dataset.sport;
   const storageKey = `hbw-online-room-${sport}`;
   const recoveryKey = `hbw-online-sessions-${sport}`;
-  const pausedKey = `hbw-online-paused-${sport}`;
   const pendingJoinKey = `hbw-online-pending-join-${sport}`;
   const $ = id => document.getElementById(id);
   let code = '', token = '', seat = 0, version = -1, joined = false;
   let connected = true, busy = false, pollTimer = null, spinLoop = null;
   let presence = {inactive: [false, false], paused: false};
   let lastActivity = Date.now();
+  let homeNoticeTimer = null;
   const IDLE_AFTER_MS = 120000;
 
   function visibleAndActive() { return !document.hidden && Date.now() - lastActivity < IDLE_AFTER_MS; }
@@ -43,6 +43,21 @@
     box.textContent = message;
     box.hidden = !message;
   }
+  function homeNotice(message) {
+    if (!message) return;
+    let notice = $('online-home-notice');
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.id = 'online-home-notice';
+      notice.className = 'online-home-notice';
+      notice.setAttribute('role', 'status');
+      document.body.append(notice);
+    }
+    notice.textContent = message;
+    notice.hidden = false;
+    clearTimeout(homeNoticeTimer);
+    homeNoticeTimer = setTimeout(() => { notice.hidden = true; }, 10000);
+  }
   function status(message) { $('online-dialog-status').textContent = message; }
   function waitingForFriend() { return api.active && seat === 1 && !joined; }
   function roomLink() { return `${location.origin}/${sport}/?join=${encodeURIComponent(code)}`; }
@@ -72,7 +87,6 @@
   function save() {
     const entry = {code, token, seat};
     try { sessionStorage.setItem(storageKey, JSON.stringify(entry)); } catch {}
-    try { localStorage.removeItem(pausedKey); } catch {}
     remember(entry);
   }
   function joinToken(roomCode) {
@@ -96,6 +110,7 @@
     presence = {inactive: [false, false], paused: false};
     api.active = false;
     pauseView();
+    roomBadge();
   }
   async function request(body) {
     const controller = new AbortController();
@@ -118,6 +133,42 @@
       throw cause;
     } finally { clearTimeout(timeout); }
   }
+  function endCurrentRoom() {
+    if (!api.active || !code || !token) return Promise.resolve();
+    const body = JSON.stringify({op: 'end', code, token});
+    // This only runs when someone explicitly leaves. Keep the small request
+    // alive if they immediately navigate to another page or sport.
+    try {
+      return fetch('/api/room', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body, cache: 'no-store', keepalive: true
+      }).then(response => {
+        if (!response.ok && response.status !== 410) throw Error('Could not end the room.');
+      }).catch(() => {
+        try { navigator.sendBeacon?.('/api/room', new Blob([body], {type: 'application/json'})); } catch {}
+      });
+    } catch {
+      try { navigator.sendBeacon?.('/api/room', new Blob([body], {type: 'application/json'})); } catch {}
+      return Promise.resolve();
+    }
+  }
+  let navigating = false;
+  async function leaveAndNavigate(url) {
+    if (navigating) return;
+    navigating = true;
+    const ending = endCurrentRoom();
+    clear();
+    // Switching editions is a deliberate return to that edition's home, not
+    // a request to reopen a previously saved match in this browser tab.
+    try {
+      const destination = new URL(url, location.href).pathname.match(/^\/(football|basketball)\/?$/)?.[1];
+      if (destination) sessionStorage.removeItem(`hbw-online-room-${destination}`);
+    } catch {}
+    // The end request is normally quick, but a slow connection should not
+    // trap someone on the confirmation screen.
+    await Promise.race([ending, new Promise(resolve => setTimeout(resolve, 1800))]);
+    location.assign(url);
+  }
 
   function showDialog() {
     error();
@@ -135,6 +186,7 @@
       $('online-invite-link').value = roomLink();
       $('online-leave').textContent = joined ? 'Back to game' : 'Cancel room';
       $('online-exit').hidden = !joined;
+      $('online-exit').textContent = 'End room for both';
       status(joined ? presence.paused ? pauseMessage() + ' Game paused.' : `Player ${seat} · Connected` : 'Waiting for Player 2 to join…');
     } else { status(''); renderRecovery(); }
     if (!$('online-dialog').open) $('online-dialog').showModal();
@@ -292,13 +344,22 @@
   async function poll() {
     if (!api.active) return;
     if (busy) return schedulePoll(650);
+    const roomCode = code, roomToken = token;
     try {
-      const data = await request({op: 'sync', code, token, visible: visibleAndActive()});
+      const data = await request({op: 'sync', code: roomCode, token: roomToken, visible: visibleAndActive()});
+      if (!api.active || code !== roomCode || token !== roomToken) return;
       hydrate(data);
       schedulePoll(visibleAndActive() ? state.phase === 'bidding' ? 850 : 1200 : 12000);
     } catch (cause) {
+      if (!api.active || code !== roomCode || token !== roomToken) return;
       connected = false;
-      if ([403, 404, 410].includes(cause.status)) {
+      if ([404, 410].includes(cause.status)) {
+        clear(); reset(); showHome();
+        if ($('online-dialog').open) $('online-dialog').close();
+        homeNotice(cause.message);
+        return;
+      }
+      if (cause.status === 403) {
         const message = cause.message;
         clear(); reset(); showHome(); showDialog(); error(message);
         return;
@@ -321,12 +382,19 @@
     code = entry.code; token = entry.token; seat = entry.seat;
     api.active = true; version = -1; save();
     try {
-      hydrate(await request({op: 'sync', code, token, visible: visibleAndActive()}), true);
+      const data = await request({op: 'sync', code: entry.code, token: entry.token, visible: visibleAndActive()});
+      if (!api.active || code !== entry.code || token !== entry.token) return;
+      hydrate(data, true);
       schedulePoll(800);
     } catch (cause) {
+      if (!api.active || code !== entry.code || token !== entry.token) return;
       const message = cause.message;
       clear([403, 404, 410].includes(cause.status));
-      reset(); showHome(); showDialog(); error(message);
+      reset(); showHome();
+      if ([404, 410].includes(cause.status)) {
+        if ($('online-dialog').open) $('online-dialog').close();
+        homeNotice(message);
+      } else { showDialog(); error(message); }
     } finally { busy = false; if (api.active) render(); }
   }
   async function makeRoom() {
@@ -352,19 +420,13 @@
   }
   async function leaveRoom() {
     if (joined) { $('online-dialog').close(); return; }
-    const oldCode = code, oldToken = token;
-    clear();
     $('online-dialog').close();
-    roomBadge();
-    try { await request({op: 'leave', code: oldCode, token: oldToken}); } catch {}
-    location.assign(`/${sport}/`);
+    await leaveAndNavigate(`/${sport}/`);
   }
   function exitRoom() {
     if (!api.active) return;
-    // Keep a recovery token so a player can resume the same seat if their
-    // friend is still playing, but do not force them back into this room.
-    clear(false);
-    try { localStorage.setItem(pausedKey, '1'); } catch {}
+    void endCurrentRoom();
+    clear();
     if ($('online-dialog').open) $('online-dialog').close();
     if (location.search) history.replaceState(null, '', location.pathname);
     reset(selectedMode);
@@ -383,13 +445,23 @@
     if (expectedSeat && expectedSeat !== seat) throw Error('You can only move your own team.');
     if (presence.paused || !visibleAndActive()) { schedulePoll(0); return readState(); }
     if (!connected || busy) return readState();
+    const roomCode = code, roomToken = token;
     busy = true; afterRender();
     let actionError = '';
     try {
-      hydrate(await request({op: 'action', code, token, version, action: command}));
+      const data = await request({op: 'action', code: roomCode, token: roomToken, version, action: command});
+      if (!api.active || code !== roomCode || token !== roomToken) return readState();
+      hydrate(data);
       schedulePoll(600);
       return readState();
     } catch (cause) {
+      if (!api.active || code !== roomCode || token !== roomToken) return readState();
+      if ([404, 410].includes(cause.status)) {
+        clear(); reset(); showHome();
+        if ($('online-dialog').open) $('online-dialog').close();
+        homeNotice(cause.message);
+        return readState();
+      }
       if (cause.status === 409) {
         if (cause.data?.state) hydrate(cause.data);
         else schedulePoll(0);
@@ -399,10 +471,11 @@
     } finally {
       busy = false;
       if (api.active) render();
-      if (actionError) $('announcement').textContent = actionError;
+      if (api.active && code === roomCode && token === roomToken && actionError) $('announcement').textContent = actionError;
     }
   }
   function restart() {
+    void endCurrentRoom();
     clear();
     reset(selectedMode);
     showHome();
@@ -463,14 +536,9 @@
     const matchingTab = saved?.code && saved?.token && [1, 2].includes(saved.seat) &&
       (!invite || (saved.seat === 2 && saved.code === invite.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6)));
     if (matchingTab) restore(saved);
-    else if (!invite) {
-      const entries = readRecovery();
-      let paused = false;
-      try { paused = !!localStorage.getItem(pausedKey); } catch {}
-      if (entries.length === 1 && !paused) restore(entries[0]);
-      else if (entries.length > 1) showDialog();
-    }
+    // Older rooms remain available under "Continue your room" if someone
+    // explicitly opens the room dialog; opening a sport never rejoins one.
   }
-  const api = {active: false, get seat() { return seat; }, get presence() { return presence; }, canArrange: team => joined && connected && !busy && !presence.paused && visibleAndActive() && seat === team + 1, action, afterRender, mount, restart};
+  const api = {active: false, get seat() { return seat; }, get presence() { return presence; }, canArrange: team => joined && connected && !busy && !presence.paused && visibleAndActive() && seat === team + 1, action, afterRender, mount, restart, leaveAndNavigate};
   window.HBW_ONLINE = api;
 })();

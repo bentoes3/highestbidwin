@@ -62,6 +62,13 @@ class FakeD1 {
           }
           return { meta: { changes } };
         }
+        if (query.startsWith('DELETE FROM ROOM_PRESENCE WHERE NOT EXISTS')) {
+          let changes = 0;
+          for (const code of db.presence.keys()) {
+            if (!db.rooms.has(code)) { db.presence.delete(code); changes++; }
+          }
+          return { meta: { changes } };
+        }
         if (query.startsWith('DELETE FROM ROOM_PRESENCE WHERE CODE = ?')) {
           return { meta: { changes: db.presence.delete(args[0]) ? 1 : 0 } };
         }
@@ -72,11 +79,37 @@ class FakeD1 {
           return { meta: { changes: 1 } };
         }
         if (query.startsWith('DELETE FROM ROOMS WHERE EXPIRES_AT')) {
+          const [now, hostCutoff, guestCutoff] = args;
           let changes = 0;
           for (const [code, row] of db.rooms) {
-            if (row.expires_at <= args[0]) { db.rooms.delete(code); changes++; }
+            const presence = db.presence.get(code);
+            if (row.expires_at <= now || (presence && (presence.seat1_seen_at <= hostCutoff ||
+              (row.seat2_hash && (presence.seat2_seen_at ?? row.created_at) <= guestCutoff)))) {
+              db.rooms.delete(code); changes++;
+            }
           }
           return { meta: { changes } };
+        }
+        if (query.startsWith('DELETE FROM ROOMS WHERE CODE = ? AND VERSION = ? AND EXISTS')) {
+          const [code, version, hostCutoff, guestCutoff] = args;
+          const row = db.rooms.get(code);
+          const presence = db.presence.get(code);
+          if (!row || row.version !== version || !presence ||
+            !(presence.seat1_seen_at <= hostCutoff ||
+              (row.seat2_hash && (presence.seat2_seen_at ?? row.created_at) <= guestCutoff))) {
+            return { meta: { changes: 0 } };
+          }
+          db.rooms.delete(code);
+          return { meta: { changes: 1 } };
+        }
+        if (query.startsWith('DELETE FROM ROOMS WHERE CODE = ? AND (SEAT1_HASH')) {
+          const [code, hostHash, guestHash] = args;
+          const row = db.rooms.get(code);
+          if (!row || (row.seat1_hash !== hostHash && row.seat2_hash !== guestHash)) {
+            return { meta: { changes: 0 } };
+          }
+          db.rooms.delete(code);
+          return { meta: { changes: 1 } };
         }
         if (query.startsWith('DELETE FROM ROOMS')) {
           const [code, hash, version] = args;
@@ -90,6 +123,13 @@ class FakeD1 {
           const row = db.rooms.get(code);
           if (!row || row.seat2_hash !== null || row.version !== version) return { meta: { changes: 0 } };
           Object.assign(row, { seat2_hash: hash, state, version: version + 1 });
+          return { meta: { changes: 1 } };
+        }
+        if (query.startsWith('UPDATE ROOMS SET EXPIRES_AT = ? WHERE CODE = ? AND EXPIRES_AT < ?')) {
+          const [expires_at, code, before] = args;
+          const row = db.rooms.get(code);
+          if (!row || row.expires_at >= before) return { meta: { changes: 0 } };
+          row.expires_at = expires_at;
           return { meta: { changes: 1 } };
         }
         if (query.startsWith('UPDATE ROOMS') && query.includes('EXPIRES_AT =')) {
@@ -238,7 +278,7 @@ test('the host can close a waiting room, while leaving a joined room keeps recon
   const db = new FakeD1();
   const waiting = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
   assert.equal((await call(db, { op: 'leave', code: waiting.code, token: waiting.token })).status, 200);
-  assert.equal((await call(db, { op: 'sync', code: waiting.code, token: waiting.token })).status, 404);
+  assert.equal((await call(db, { op: 'sync', code: waiting.code, token: waiting.token })).status, 410);
 
   const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
   await call(db, { op: 'join', code: host.code });
@@ -367,4 +407,193 @@ test('rejoining an existing seat repairs a missing guest heartbeat', async () =>
   assert.equal(retry.body.version, guest.version);
   assert.deepEqual(retry.body.presence, { inactive: [false, false], paused: false });
   assert.equal(typeof db.presence.get(host.code).seat2_seen_at, 'number');
+});
+
+test('either joined player can end a room, and the other player cannot recover or act in it', async () => {
+  const db = new FakeD1();
+  for (const endingSeat of [1, 2]) {
+    const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+    const guest = (await call(db, { op: 'join', code: host.code })).body;
+    const toss = await call(db, { op: 'action', code: host.code, token: host.token,
+      version: guest.version, action: { type: 'toss' } });
+    assert.equal(toss.status, 200);
+    // Cover both a game in progress and its final result screen.
+    if (endingSeat === 2) {
+      const row = db.rooms.get(host.code);
+      row.state = JSON.stringify({ ...JSON.parse(row.state), phase: 'done' });
+    }
+    const endingPlayer = endingSeat === 1 ? host : guest;
+    const otherPlayer = endingSeat === 1 ? guest : host;
+    const wrongToken = await call(db, { op: 'end', code: host.code, token: 'x'.repeat(43) });
+    assert.equal(wrongToken.status, 403);
+    assert.equal(db.rooms.has(host.code), true);
+
+    const ended = await call(db, { op: 'end', code: host.code, token: endingPlayer.token });
+    assert.equal(ended.status, 200);
+    assert.deepEqual(ended.body, { ended: true });
+    assert.equal(db.rooms.has(host.code), false);
+    assert.equal(db.presence.has(host.code), false);
+    assert.equal((await call(db, { op: 'end', code: host.code, token: endingPlayer.token })).status, 200);
+
+    for (const body of [
+      { op: 'sync', code: host.code, token: otherPlayer.token },
+      { op: 'join', code: host.code },
+      { op: 'action', code: host.code, token: otherPlayer.token, version: toss.body.version, action: { type: 'toss' } },
+    ]) {
+      const response = await call(db, body);
+      assert.equal(response.status, 410);
+      assert.match(response.body.error, /ended or expired/i);
+    }
+  }
+});
+
+test('the host can end a waiting room without a guest', async () => {
+  const db = new FakeD1();
+  const host = (await call(db, { op: 'create', sport: 'basketball', mode: 'current' })).body;
+  assert.equal((await call(db, { op: 'end', code: host.code, token: host.token })).status, 200);
+  assert.equal((await call(db, { op: 'join', code: host.code })).status, 410);
+});
+
+test('a joined room retires after one player is away for fifteen minutes, not after the one-minute pause', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+    const guest = (await call(db, { op: 'join', code: host.code })).body;
+    Date.now = () => start + 60_000;
+    const paused = await call(db, { op: 'sync', code: host.code, token: host.token });
+    assert.equal(paused.status, 200);
+    assert.equal(paused.body.presence.paused, true);
+    Date.now = () => start + 15 * 60_000 - 1;
+    const waiting = await call(db, { op: 'sync', code: host.code, token: host.token });
+    assert.equal(waiting.status, 200);
+    assert.equal(db.rooms.has(host.code), true);
+    Date.now = () => start + 15 * 60_000;
+    const retired = await call(db, { op: 'sync', code: host.code, token: host.token });
+    assert.equal(retired.status, 410);
+    assert.match(retired.body.error, /away too long/i);
+    assert.equal(db.rooms.has(host.code), false);
+    assert.equal(db.presence.has(host.code), false);
+    assert.equal((await call(db, { op: 'sync', code: host.code, token: guest.token })).status, 410);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('active heartbeats keep a room alive without bidding or changing the action version', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const host = (await call(db, { op: 'create', sport: 'basketball', mode: 'prime' })).body;
+    const guest = (await call(db, { op: 'join', code: host.code })).body;
+    for (let minute = 10; minute <= 190; minute += 10) {
+      Date.now = () => start + minute * 60_000;
+      const hostPoll = await call(db, { op: 'sync', code: host.code, token: host.token });
+      const guestPoll = await call(db, { op: 'sync', code: host.code, token: guest.token });
+      assert.equal(hostPoll.status, 200);
+      assert.equal(guestPoll.status, 200);
+      assert.equal(hostPoll.body.version, guest.version);
+      assert.equal(guestPoll.body.version, guest.version);
+      assert.equal(guestPoll.body.presence.paused, false);
+    }
+    assert.equal(db.rooms.has(host.code), true);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('waiting rooms retire after fifteen minutes; creating another room cleans abandoned rooms', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const waiting = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+    const joined = (await call(db, { op: 'create', sport: 'basketball', mode: 'current' })).body;
+    await call(db, { op: 'join', code: joined.code });
+    Date.now = () => start + 15 * 60_000;
+    const fresh = await call(db, { op: 'create', sport: 'football', mode: 'prime' });
+    assert.equal(fresh.status, 200);
+    for (const code of [waiting.code, joined.code]) {
+      assert.equal(db.rooms.has(code), false);
+      assert.equal(db.presence.has(code), false);
+      assert.equal((await call(db, { op: 'join', code })).status, 410);
+    }
+    assert.equal(db.rooms.has(fresh.body.code), true);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('a joined room with a missing guest heartbeat still retires after fifteen minutes', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const first = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+    const second = (await call(db, { op: 'create', sport: 'basketball', mode: 'current' })).body;
+    for (const room of [first, second]) {
+      await call(db, { op: 'join', code: room.code });
+      // Model a join interrupted after reserving seat 2 but before its
+      // separate presence write completed.
+      db.presence.get(room.code).seat2_seen_at = null;
+    }
+    Date.now = () => start + 14 * 60_000;
+    for (const room of [first, second]) {
+      const activeHost = await call(db, { op: 'sync', code: room.code, token: room.token });
+      assert.equal(activeHost.status, 200);
+      assert.equal(activeHost.body.presence.paused, true);
+    }
+    Date.now = () => start + 15 * 60_000;
+    const retired = await call(db, { op: 'sync', code: first.code, token: first.token });
+    assert.equal(retired.status, 410);
+    assert.match(retired.body.error, /away too long/i);
+    assert.equal(db.rooms.has(first.code), false);
+    assert.equal((await call(db, { op: 'create', sport: 'football', mode: 'prime' })).status, 200);
+    assert.equal(db.rooms.has(second.code), false);
+    assert.equal(db.presence.has(second.code), false);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('a returning heartbeat can win the race against automatic retirement', async () => {
+  const db = new FakeD1();
+  const originalNow = Date.now;
+  const start = originalNow();
+  try {
+    Date.now = () => start;
+    const host = (await call(db, { op: 'create', sport: 'football', mode: 'current' })).body;
+    await call(db, { op: 'join', code: host.code });
+    Date.now = () => start + 14 * 60_000;
+    assert.equal((await call(db, { op: 'sync', code: host.code, token: host.token })).status, 200);
+    Date.now = () => start + 15 * 60_000;
+    let refreshed = false;
+    const originalPrepare = db.prepare.bind(db);
+    db.prepare = sql => {
+      const statement = originalPrepare(sql);
+      if (!sql.includes('DELETE FROM rooms') || !sql.includes('AND EXISTS')) return statement;
+      const originalRun = statement.run.bind(statement);
+      statement.run = async () => {
+        if (!refreshed) {
+          db.presence.get(host.code).seat2_seen_at = Date.now();
+          refreshed = true;
+        }
+        return originalRun();
+      };
+      return statement;
+    };
+    const response = await call(db, { op: 'sync', code: host.code, token: host.token });
+    assert.equal(refreshed, true);
+    assert.equal(response.status, 200);
+    assert.equal(db.rooms.has(host.code), true);
+    assert.equal(response.body.presence.paused, false);
+  } finally {
+    Date.now = originalNow;
+  }
 });
