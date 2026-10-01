@@ -191,14 +191,14 @@
     } else { status(''); renderRecovery(); }
     if (!$('online-dialog').open) $('online-dialog').showModal();
   }
-  function showRoomScreen() {
+  function showRoomScreen(closeJoinedDialog = false) {
     const waiting = waitingForFriend();
     $('home').hidden = !waiting;
     $('game').hidden = waiting;
     $('online-close').hidden = waiting;
     $('online-close').disabled = waiting;
     if (waiting && (!$('online-dialog').open || !$('online-entry').hidden)) showDialog();
-    if (joined && $('online-dialog').open) $('online-dialog').close();
+    if (closeJoinedDialog && $('online-dialog').open) $('online-dialog').close();
   }
   function renderRecovery() {
     const invite = new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 6);
@@ -321,7 +321,7 @@
     const wasJoined = joined;
     joined = !!data.joined;
     if (!force && data.version <= version) {
-      showRoomScreen();
+      showRoomScreen(!wasJoined && joined);
       if (!wasConnected || presenceChanged || wasJoined !== joined) render();
       else { roomBadge(); pauseView(); }
       if (!presence.paused && ['spinning', 'free-spinning'].includes(state.phase) && !spinLoop) startFakeSpin();
@@ -331,7 +331,7 @@
     version = data.version;
     selectedMode = data.state.mode;
     state = {...data.state, revealed: false, revealing: false};
-    showRoomScreen();
+    showRoomScreen(!wasJoined && joined);
     render();
     cues(previous, state);
     if (['spinning', 'free-spinning'].includes(state.phase) && !spinLoop) startFakeSpin();
