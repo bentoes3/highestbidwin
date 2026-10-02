@@ -35,6 +35,12 @@ The build checks JavaScript syntax, required assets, local paths and online/offl
 
 The sport selector is at `/`, with static directory pages at `/football` and `/basketball`. Each edition's game screens and dialogs stay on its URL. Direct navigation and refresh work through directory index files; no SPA redirect is needed. A refresh starts a new local game; an online room can resume from that browser's session until it expires. `_headers` tells browsers to revalidate files after deployments.
 
+## Motion and touch controls
+
+The header effects toggle stores a full/reduced animation preference across all three pages. Before a choice, the game follows the device’s reduced-motion setting. Reduced mode still cycles player identities before revealing the signing. Reel movement animates the stable card zone, so replacing player cards cannot restart each animation frame.
+
+On phones, tap a signed player then a destination slot, or drag the ↕ handle. The row body allows vertical roster scrolling on shorter screens. Mouse users can drag the whole row; keyboard users can select with Enter or Space. Lineup ownership and turn rules apply to both controls in every mode.
+
 ## Online rooms
 
 One player creates a six-character code and sends the code or invite link to a friend. The creator stays on the invitation screen until the second player joins from another device; they can cancel the waiting room instead of entering the game alone. Refreshing the same tab restores its waiting room or game. Each browser receives a private player token. Session storage keeps the active tab connected; local storage offers a manual recovery choice after closing a tab, without silently reopening an old room when switching sports. The room API in `functions/api/room.js` validates turns and applies the shared rules in `online/engine.mjs`; both devices poll for changes during play. D1 keeps the authoritative state with version checks so simultaneous actions cannot overwrite one another. Choosing Home, ending the online game, or starting a new game ends the room for both players. The results screen stays available until a player leaves it. Rooms also end after either player has been inactive for 15 minutes, with a rolling three-hour backup expiry for active rooms.

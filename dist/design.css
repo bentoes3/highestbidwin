@@ -231,6 +231,8 @@ html.glass-design .hero-back {
 }
 
 html.glass-design .primary {
+  min-width: 0;
+  max-width: 100%;
   background-color: var(--glass-accent);
   border-color: var(--glass-accent);
   color: #000;
@@ -239,7 +241,9 @@ html.glass-design .primary {
   border-radius: 9999px;
   padding: 1rem 2rem;
   box-shadow: 0 0 30px rgba(var(--glass-accent-rgb), .3);
-  transition: background .18s, color .18s, box-shadow .22s, scale .22s, transform .18s;
+  line-height: 1.2;
+  white-space: normal;
+  transition: background .18s, color .18s, box-shadow .22s, transform .18s;
 }
 
 html.glass-design .primary.secondary,
@@ -250,10 +254,12 @@ html.glass-design body[data-sport="basketball"] .primary.secondary {
   box-shadow: none;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  html.glass-design .primary:not(:disabled):hover { scale: 1.05; }
-  html.glass-design #game .primary:not(:disabled):hover { scale: 1.025; }
-}
+html.glass-design button { min-width: 0; max-width: 100%; }
+html.glass-design .bid-buttons { min-width: 0; }
+html.glass-design .bid-buttons .primary { width: auto; flex: 1 1 0; padding-inline: 10px; }
+html.glass-design .bid-buttons .quiet { flex: 0 0 auto; min-width: 58px; padding-inline: 12px; }
+html.glass-design .dialog-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.glass-design .dialog-actions button { min-height: 48px; padding: 12px; }
 
 /* Gameplay panels receive only paint changes so the fixed auction tracks stay put. */
 html.glass-design #game .team,
@@ -386,11 +392,9 @@ html.glass-design dialog::backdrop {
   html.glass-design #game .auction { border-radius: 1rem; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html.glass-design .float-anim,
-  html.glass-design .hero-cards { animation: none; }
-  html.glass-design .primary { transition: none; }
-}
+html.glass-design.motion-reduced .float-anim,
+html.glass-design.motion-reduced .hero-cards { animation: none; }
+html.glass-design.motion-reduced .primary { transition: none; }
 
 /* The sport pages share the chooser's header, left edge and headline baseline. */
 @media (min-width: 761px) {
@@ -421,9 +425,10 @@ html.glass-design dialog::backdrop {
 }
 
 /* A second way to start fits the existing era screen without adding another card. */
-html.glass-design .start-row { justify-content: flex-end; gap: 12px; }
+html.glass-design .start-row { justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+html.glass-design .start-row .primary { width: auto; flex: 1 1 220px; }
 html.glass-design .online-start {
-  min-width: 180px;
+  min-width: 0;
   min-height: 52px;
   padding: 12px 22px;
   border: 1px solid rgba(var(--glass-accent-rgb), .42);
@@ -433,7 +438,8 @@ html.glass-design .online-start {
   font-family: 'Space Grotesk', Barlow, Arial, sans-serif;
   font-size: 15px;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.2;
 }
 html.glass-design .online-start span { margin-left: 12px; color: var(--glass-accent); }
 html.glass-design .online-start:hover {

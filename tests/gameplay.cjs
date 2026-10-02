@@ -6,7 +6,64 @@ function engine(sport,manual=false){
  const nodes=new Map();function node(id){if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',hidden:false,classList:{add(){},remove(){},toggle(){}},setAttribute(){},scrollIntoView(){},showModal(){},close(){}});return nodes.get(id);}
  const sb={document:{getElementById:node,querySelector:node,querySelectorAll:()=>[]},window:{matchMedia:()=>({matches:!manual}),scrollTo(){}},setTimeout:manual?(f=>{timers.push(f);return timers.length;}):(f=>setTimeout(f,0)),clearTimeout,setInterval,clearInterval,console};vm.createContext(sb);
  for(const f of ['players.js','game.js']){if(f==='game.js')vm.runInContext(fs.readFileSync('dist/sound.js','utf8'),sb);vm.runInContext(fs.readFileSync(`dist/${sport==='basketball'?'basketball/':''}${f}`,'utf8'),sb);}
- return {run:s=>vm.runInContext(s,sb),node,timers};
+ return {run:s=>vm.runInContext(s,sb),node,timers,context:sb};
+}
+function interactionEngine(sport){
+ const fx=engine(sport,true),handlers=new Map(),rosters=[],renderCounts=[0,0];let hit=null;
+ for(let t=0;t<2;t++){const panel=fx.node('team-'+t);let html=panel.innerHTML;rosters[t]={scrollTop:0};panel.querySelector=selector=>selector==='.roster'?rosters[t]:null;Object.defineProperty(panel,'innerHTML',{get:()=>html,set:value=>{html=value;rosters[t]={scrollTop:0};renderCounts[t]++;}});}
+ fx.context.document.addEventListener=(type,fn)=>{if(!handlers.has(type))handlers.set(type,[]);handlers.get(type).push(fn);};
+ fx.context.document.elementFromPoint=()=>hit;
+ fx.context.document.body={classList:{add(){},remove(){}}};
+ fx.context.document.createElement=()=>({style:{},remove(){this.removed=true;}});
+ fx.run('setupLineupInteractions()');
+ function row(team,slot){
+  const classes=new Set(['roster-row','repositionable']);let captured=null;
+  const el={dataset:{team:String(team),slot:String(slot)},style:{},classList:{add:s=>classes.add(s),remove:s=>classes.delete(s),contains:s=>classes.has(s)},
+   closest:s=>s==='.roster-row.repositionable'?el:null,
+   getBoundingClientRect:()=>({left:10+team*200,top:100+slot*50,width:180,height:44}),
+   getAttribute:()=>null,setAttribute(){},removeAttribute(){el.style={};},before:p=>{el.placeholder=p;},
+   setPointerCapture:id=>{captured=id;},hasPointerCapture:id=>captured===id,releasePointerCapture:()=>{captured=null;}};
+  el.handle={closest:s=>s==='.move-hint'?el.handle:s==='.roster-row.repositionable'?el:null};return el;
+ }
+ function fire(type,target,props={}){const rect=(target.handle?target:target.closest('.roster-row.repositionable')).getBoundingClientRect();const event={target,pointerId:1,pointerType:'touch',isPrimary:true,button:0,clientX:rect.left+40,clientY:rect.top+20,detail:1,preventDefault(){this.defaultPrevented=true;},...props};for(const handler of handlers.get(type)||[])handler(event);return event;}
+ return {...fx,row,fire,hit:r=>{hit=r;},scroll:(team,value)=>{if(value!==undefined)rosters[team].scrollTop=value;return rosters[team].scrollTop;},renderCount:team=>renderCounts[team]};
+}
+for(const sport of ['football','basketball'])for(const mode of ['current','prime']){
+ const fx=interactionEngine(sport),run=fx.run;
+ const prepare=()=>run(`startGame('${mode}');state.teams.forEach((t,i)=>{t.squad=playerPool().slice(i*3,i*3+3).map(player=>({player,price:1}));syncLineup(t)});state.phase='bidding';state.turn=0;render()`);
+ prepare();let from=run('state.teams[0].order.findIndex(id=>id!==null)'),to=run('state.teams[0].order.findIndex(id=>id===null)'),source=fx.row(0,from),target=fx.row(0,to),id=run(`state.teams[0].order[${from}]`);
+ // Touch selection executes directly, preserves a scrolled roster, and a synthesized click cannot undo it.
+ fx.scroll(0,83);fx.fire('pointerdown',source);fx.fire('pointerup',source);assert.equal(run('selectedSlot.slot'),from);assert(fx.node('team-0').innerHTML.includes('CHOOSE A SLOT'));assert(fx.node('team-0').innerHTML.includes('move-destination'));assert(fx.node('team-0').innerHTML.includes('aria-pressed="true"'));assert.equal(fx.scroll(0),83);
+ fx.fire('click',source);assert.equal(run('selectedSlot.slot'),from);
+ fx.fire('pointerdown',target);fx.fire('pointerup',target);assert.equal(run(`state.teams[0].order[${to}]`),id);assert.equal(run('selectedSlot'),null);assert.equal(fx.scroll(0),83);
+ // The original tab follows a handle drag, survives a harmless sync render,
+ // and cannot be hijacked or dropped by a second finger.
+ prepare();from=run('state.teams[0].order.findIndex(id=>id!==null)');to=(from+1)%5;source=fx.row(0,from);target=fx.row(0,to);id=run(`state.teams[0].order[${from}]`);fx.hit(target);
+ fx.fire('pointerdown',source.handle);fx.fire('pointermove',source.handle,{clientY:target.getBoundingClientRect().top+20});assert.equal(run('dragState.active'),true);assert(source.classList.contains('dragging-player-tab'));assert.equal(source.style.position,'fixed');
+ fx.node('team-0').innerHTML='gesture-held';run('renderTeams()');assert.equal(fx.node('team-0').innerHTML,'gesture-held');assert.equal(run('dragState.active'),true);
+ fx.fire('pointermove',source.handle,{pointerId:2,clientX:999});assert.notEqual(source.style.left,'949px');fx.fire('pointerup',source.handle,{pointerId:2});assert.equal(run('dragState.active'),true);
+ fx.fire('pointerup',source.handle,{clientY:target.getBoundingClientRect().top+20});assert.equal(run(`state.teams[0].order[${to}]`),id);assert.equal(run('dragState'),null);assert(!source.classList.contains('dragging-player-tab'));assert(source.placeholder.removed);
+ // A vertical swipe on a row body can scroll without moving or selecting it.
+ prepare();from=run('state.teams[0].order.findIndex(id=>id!==null)');source=fx.row(0,from);const before=run('state.teams[0].order.join()');fx.scroll(0,96);const beforeCancelRenders=fx.renderCount(0);fx.fire('pointerdown',source);fx.fire('pointermove',source,{clientY:source.getBoundingClientRect().top+55});assert.equal(run('dragState.active'),false);fx.fire('pointercancel',source);fx.fire('pointerup',source);assert.equal(run('selectedSlot'),null);assert.equal(run('state.teams[0].order.join()'),before);assert.equal(fx.renderCount(0),beforeCancelRenders);assert.equal(fx.scroll(0),96);
+ // A cancelled drag and a real lineup change restore the tab without a move.
+ fx.fire('pointerdown',source.handle);fx.fire('pointermove',source.handle,{clientY:300});fx.fire('pointercancel',source.handle,{pointerId:2});assert.equal(run('dragState.active'),true);fx.fire('lostpointercapture',source.handle);assert.equal(run('dragState'),null);assert(!source.classList.contains('dragging-player-tab'));
+ fx.fire('pointerdown',source.handle);fx.fire('pointermove',source.handle,{clientY:300});run('state.phase="spinning";renderTeams()');assert.equal(run('dragState'),null);
+ // Mouse row dragging and keyboard selection still work, including escape.
+ prepare();from=run('state.teams[0].order.findIndex(id=>id!==null)');to=(from+1)%5;source=fx.row(0,from);target=fx.row(0,to);fx.hit(target);id=run(`state.teams[0].order[${from}]`);fx.fire('pointerdown',source,{pointerType:'mouse'});fx.fire('pointermove',source,{pointerType:'mouse',clientY:target.getBoundingClientRect().top+20});fx.fire('pointerup',source,{pointerType:'mouse',clientY:target.getBoundingClientRect().top+20});assert.equal(run(`state.teams[0].order[${to}]`),id);
+ fx.fire('keydown',target,{key:'Enter'});assert.equal(run('selectedSlot.slot'),to);fx.fire('keydown',target,{key:'Escape'});assert.equal(run('selectedSlot'),null);
+ // Online movement keeps ownership gates and sends the same move command.
+ prepare();run('globalThis.moves=[];window.HBW_ONLINE={active:true,canArrange:t=>t===0,action:(move,seat)=>moves.push({move,seat})}');const rival=fx.row(1,run('state.teams[1].order.findIndex(id=>id!==null)'));fx.fire('pointerdown',rival.handle);assert.equal(run('dragState'),null);from=run('state.teams[0].order.findIndex(id=>id!==null)');to=(from+1)%5;source=fx.row(0,from);target=fx.row(0,to);fx.hit(target);fx.fire('pointerdown',source.handle);fx.fire('pointermove',source.handle,{clientY:target.getBoundingClientRect().top+20});fx.fire('pointerup',source.handle,{clientY:target.getBoundingClientRect().top+20});assert.equal(run('moves.length'),1);assert.equal(run('moves[0].seat'),1);assert.equal(run('moves[0].move.from'),from);assert.equal(run('moves[0].move.to'),to);
+ console.log(`PASS ${sport} ${mode}: touch tap, handle drag, row scroll, pointer ownership/cancellation, sync-safe tab, keyboard/mouse and online ownership.`);
+}
+for(const sport of ['football','basketball'])for(const reduced of [false,true]){
+ const fx=engine(sport,true),loops=[],finishes=[];
+ fx.context.setInterval=(fn,delay)=>{loops.push({fn,delay});return loops.length;};fx.context.clearInterval=()=>{};
+ fx.context.setTimeout=(fn,delay)=>{finishes.push({fn,delay});return finishes.length;};fx.context.clearTimeout=()=>{};
+ fx.run(`window.HBW_MOTION={reduced:()=>${reduced}};startGame('current');state.phase='ready';state.firstBidder=0;render()`);
+ assert.equal(fx.run('reducedMotion()'),reduced);
+ fx.run('spin()');assert.equal(fx.run('state.phase'),'spinning');assert.equal(loops.at(-1).delay,reduced?170:100);assert.equal(finishes.at(-1).delay,reduced?680:1800);loops.at(-1).fn();assert(fx.node('card-zone').innerHTML.includes('spinning'));finishes.at(-1).fn();assert.equal(fx.run('state.phase'),'bidding');
+ fx.run("state.phase='free-ready';state.freeTurn=0;spin()");assert.equal(fx.run('state.phase'),'free-spinning');assert.equal(loops.at(-1).delay,reduced?170:100);assert.equal(finishes.at(-1).delay,reduced?680:1800);loops.at(-1).fn();finishes.at(-1).fn();assert.equal(fx.run('state.teams[0].squad.length'),1);
+ console.log(`PASS ${sport}: ${reduced?'reduced':'full'} motion setting keeps auction and free-pick cycling visible before reveal.`);
 }
 (async()=>{
 for(const sport of ['football','basketball']){

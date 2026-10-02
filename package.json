@@ -7,7 +7,7 @@
     "dev": "node scripts/serve.mjs",
     "preview": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "test": "node scripts/update-online-pools.mjs --check && node tests/gameplay.cjs && node tests/sound.cjs && node tests/routes.mjs && node tests/design.cjs && node --test online/engine.test.mjs tests/online-api.mjs",
+    "test": "node scripts/update-online-pools.mjs --check && node tests/gameplay.cjs && node tests/sound.cjs && node tests/motion.cjs && node tests/routes.mjs && node tests/design.cjs && node --test online/engine.test.mjs tests/online-api.mjs",
     "sync:online-pools": "node scripts/update-online-pools.mjs"
   },
   "engines": {

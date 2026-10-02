@@ -1,0 +1,79 @@
+/* Standard transforms keep feedback consistent without enlarging the controls. */
+html.glass-design .primary,
+html.glass-design .quiet,
+html.glass-design .mode-card,
+html.glass-design .online-start {
+  transform-origin: center;
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .2s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  html.glass-design .primary:not(:disabled):hover,
+  html.glass-design #game .primary:not(:disabled):hover {
+    scale: 1;
+    transform: translateY(-1px);
+  }
+  html.glass-design .quiet:not(:disabled):hover,
+  html.glass-design .mode-card:not(:disabled):hover,
+  html.glass-design .online-start:not(:disabled):hover { transform: translateY(-1px); }
+}
+html.glass-design .primary:not(:disabled):active,
+html.glass-design #game .primary:not(:disabled):active,
+html.glass-design .quiet:not(:disabled):active,
+html.glass-design .mode-card:not(:disabled):active,
+html.glass-design .online-start:not(:disabled):active {
+  scale: 1;
+  transform: translateY(1px);
+}
+
+/* The reel is stable while the identities change inside it. */
+#game .auction[data-phase="spinning"] #card-zone,
+#game .auction[data-phase="free-spinning"] #card-zone {
+  animation: hbw-slot-reel .2s linear infinite;
+  will-change: transform, filter;
+}
+#game .auction[data-phase="spinning"] .spinning,
+#game .auction[data-phase="free-spinning"] .spinning { animation: none; }
+@keyframes hbw-slot-reel {
+  0%, 100% { transform: translateY(-4px); filter: blur(.3px); }
+  45% { transform: translateY(4px); filter: blur(1.2px); }
+}
+
+header .motion-toggle {
+  width: 37px;
+  height: 37px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted);
+}
+header .motion-toggle:hover { color: var(--lime); border-color: var(--lime); }
+header .motion-toggle svg { width: 19px; height: 19px; }
+header .motion-toggle .motion-slash { opacity: 0; }
+header .motion-toggle.motion-off .motion-slash { opacity: 1; }
+header .motion-toggle.motion-off .motion-rays { opacity: .35; }
+@media (max-width: 760px) {
+  header .motion-toggle { width: 34px; height: 34px; }
+  header .motion-toggle svg { width: 17px; height: 17px; }
+}
+
+/* Reduced motion preserves a clear reveal cue without spinning or enlarging. */
+html.motion-reduced #game .auction[data-phase="spinning"] #card-zone,
+html.motion-reduced #game .auction[data-phase="free-spinning"] #card-zone {
+  animation: hbw-reduced-reel .8s ease-in-out infinite !important;
+  transform: none;
+  filter: none;
+  will-change: opacity;
+}
+html.motion-reduced .primary,
+html.motion-reduced #game .primary,
+html.motion-reduced .quiet,
+html.motion-reduced .mode-card,
+html.motion-reduced .online-start { transform: none !important; scale: 1; }
+@keyframes hbw-reduced-reel {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .85; }
+}

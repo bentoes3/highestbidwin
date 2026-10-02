@@ -277,16 +277,21 @@
   function stopFakeSpin() { clearInterval(spinLoop); spinLoop = null; }
   function startFakeSpin() {
     stopFakeSpin();
-    if (presence.paused || !visibleAndActive() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (presence.paused || !visibleAndActive()) return;
+    const reduced = window.HBW_MOTION?.reduced() ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let frames = 0;
     spinLoop = setInterval(() => {
       if (!api.active || !['spinning', 'free-spinning'].includes(state.phase)) return stopFakeSpin();
       const candidates = playerPool();
       const fake = candidates[Math.floor(Math.random() * candidates.length)];
       $('card-zone').innerHTML = card(fake, true);
-      if (++frames % 2 === 0 && frames < 18) window.HBW_SOUND?.tick(frames / 18);
-    }, 100);
+      frames++;
+      if (reduced ? frames <= 3 : frames % 2 === 0 && frames < 18) window.HBW_SOUND?.tick(reduced ? frames / 4 : frames / 18);
+    }, reduced ? 450 : 100);
   }
+  window.addEventListener('hbw-motion-change', () => {
+    if (api.active && ['spinning', 'free-spinning'].includes(state.phase)) startFakeSpin();
+  });
   function cues(previous, incoming) {
     if (!previous) return;
     if (incoming.phase === 'tossing' && previous.phase !== 'tossing') window.HBW_SOUND?.toss();
