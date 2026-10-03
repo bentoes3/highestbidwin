@@ -37,7 +37,7 @@ The sport selector is at `/`, with static directory pages at `/football` and `/b
 
 ## Motion and touch controls
 
-The header effects toggle stores a full/reduced animation preference across all three pages. Before a choice, the game follows the device’s reduced-motion setting. Reduced mode still cycles player identities before revealing the signing. Reel movement animates the stable card zone, so replacing player cards cannot restart each animation frame.
+Full animation effects run on every device, regardless of its reduced-motion setting or a previously saved effects preference. The header has no effects picker. Reel movement animates the stable card zone, so replacing player cards cannot restart each animation frame. This applies to local and online play in both sports.
 
 On phones, tap a signed player then a destination slot, or drag the ↕ handle. The row body allows vertical roster scrolling on shorter screens. Mouse users can drag the whole row; keyboard users can select with Enter or Space. Lineup ownership and turn rules apply to both controls in every mode.
 

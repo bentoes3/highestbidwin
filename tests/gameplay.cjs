@@ -55,15 +55,19 @@ for(const sport of ['football','basketball'])for(const mode of ['current','prime
  prepare();run('globalThis.moves=[];window.HBW_ONLINE={active:true,canArrange:t=>t===0,action:(move,seat)=>moves.push({move,seat})}');const rival=fx.row(1,run('state.teams[1].order.findIndex(id=>id!==null)'));fx.fire('pointerdown',rival.handle);assert.equal(run('dragState'),null);from=run('state.teams[0].order.findIndex(id=>id!==null)');to=(from+1)%5;source=fx.row(0,from);target=fx.row(0,to);fx.hit(target);fx.fire('pointerdown',source.handle);fx.fire('pointermove',source.handle,{clientY:target.getBoundingClientRect().top+20});fx.fire('pointerup',source.handle,{clientY:target.getBoundingClientRect().top+20});assert.equal(run('moves.length'),1);assert.equal(run('moves[0].seat'),1);assert.equal(run('moves[0].move.from'),from);assert.equal(run('moves[0].move.to'),to);
  console.log(`PASS ${sport} ${mode}: touch tap, handle drag, row scroll, pointer ownership/cancellation, sync-safe tab, keyboard/mouse and online ownership.`);
 }
-for(const sport of ['football','basketball'])for(const reduced of [false,true]){
+for(const sport of ['football','basketball'])for(const systemReduced of [false,true])for(const staleReduced of [false,true]){
  const fx=engine(sport,true),loops=[],finishes=[];
+ fx.context.window.matchMedia=()=>({matches:systemReduced});
  fx.context.setInterval=(fn,delay)=>{loops.push({fn,delay});return loops.length;};fx.context.clearInterval=()=>{};
  fx.context.setTimeout=(fn,delay)=>{finishes.push({fn,delay});return finishes.length;};fx.context.clearTimeout=()=>{};
- fx.run(`window.HBW_MOTION={reduced:()=>${reduced}};startGame('current');state.phase='ready';state.firstBidder=0;render()`);
- assert.equal(fx.run('reducedMotion()'),reduced);
- fx.run('spin()');assert.equal(fx.run('state.phase'),'spinning');assert.equal(loops.at(-1).delay,reduced?170:100);assert.equal(finishes.at(-1).delay,reduced?680:1800);loops.at(-1).fn();assert(fx.node('card-zone').innerHTML.includes('spinning'));finishes.at(-1).fn();assert.equal(fx.run('state.phase'),'bidding');
- fx.run("state.phase='free-ready';state.freeTurn=0;spin()");assert.equal(fx.run('state.phase'),'free-spinning');assert.equal(loops.at(-1).delay,reduced?170:100);assert.equal(finishes.at(-1).delay,reduced?680:1800);loops.at(-1).fn();finishes.at(-1).fn();assert.equal(fx.run('state.teams[0].squad.length'),1);
- console.log(`PASS ${sport}: ${reduced?'reduced':'full'} motion setting keeps auction and free-pick cycling visible before reveal.`);
+ fx.run(`window.HBW_MOTION={reduced:()=>${staleReduced}};startGame('current')`);
+ assert.equal(fx.run('reducedMotion()'),false, 'The game keeps full effects even with an old reduced API or OS setting');
+ fx.run('toss()');assert.equal(fx.run('state.phase'),'tossing');assert.equal(finishes.at(-1).delay,1600);finishes.at(-1).fn();assert.equal(fx.run('state.phase'),'ready');
+ fx.run('spin()');assert.equal(fx.run('state.phase'),'spinning');assert.equal(loops.at(-1).delay,100);assert.equal(finishes.at(-1).delay,1800);loops.at(-1).fn();assert(fx.node('card-zone').innerHTML.includes('spinning'));finishes.at(-1).fn();assert.equal(fx.run('state.phase'),'bidding');
+ fx.run("state.phase='free-ready';state.freeTurn=0;spin()");assert.equal(fx.run('state.phase'),'free-spinning');assert.equal(loops.at(-1).delay,100);assert.equal(finishes.at(-1).delay,1800);loops.at(-1).fn();finishes.at(-1).fn();assert.equal(fx.run('state.teams[0].squad.length'),1);
+ fx.run("state.teams.forEach((t,i)=>{t.squad=playerPool().slice(i*5,i*5+5).map(player=>({player,price:1}));syncLineup(t)});state.phase='done';render();showResults(false)");
+ assert.equal(fx.run('state.revealed'),false);assert(fx.node('results').innerHTML.includes('reveal-count'));assert.deepEqual(finishes.slice(-3).map(t=>t.delay),[800,1600,2400]);finishes.at(-1).fn();assert.equal(fx.run('state.revealed'),true);assert(fx.node('results').innerHTML.includes('winner-heading'));
+ console.log(`PASS ${sport}: OS reduced ${systemReduced}, stale reduced ${staleReduced}: full toss, auction/free-pick reel and staged finale.`);
 }
 (async()=>{
 for(const sport of ['football','basketball']){
@@ -106,7 +110,7 @@ for(const sport of ['football','basketball']){
   const original=run('state.teams[0].order.slice()');run('movePlayer(0,0,4)');assert.equal(run('state.teams[0].order[4]'),original[0]);assert.equal(run('state.teams[0].order[0]'),original[4]);
   const totals=run('state.teams.map(t=>lineupFor(t).total)');run('readyLineup(0)');assert.equal(run('state.phase'),'lineup');assert.equal(run('state.teams[0].ready'),true);assert.throws(()=>run('movePlayer(0,0,1)'),/cannot be changed/);
   run('readyLineup(0)');assert.equal(run('state.teams[0].ready'),false);run('readyLineup(0)');run('readyLineup(1)');assert.equal(run('state.phase'),'done');
-  const result=run('showResults(false)');assert(node('results').innerHTML.includes('Adjusted team rating'));assert(node('team-0').innerHTML.includes('roster-score'));assert.equal(result.winner,totals[0]===totals[1]?'draw':`Player ${totals[0]>totals[1]?1:2}`);
+  await new Promise(resolve=>setTimeout(resolve,0));const result=run('showResults(false)');assert(node('results').innerHTML.includes('Adjusted team rating'));assert(node('team-0').innerHTML.includes('roster-score'));assert.equal(result.winner,totals[0]===totals[1]?'draw':`Player ${totals[0]>totals[1]?1:2}`);
   run('reset()');assert(run('state.teams.every(t=>t.money===20&&t.squad.length===0&&t.soloSkips===0)'));assert.equal(run('state.phase'),'toss-ready');
  }
  // Completed games retain accounting and unique signings.

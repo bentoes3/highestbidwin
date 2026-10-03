@@ -56,7 +56,7 @@ function readyLineup(t){
 let lastCardKey=null;
 let state,spinTimer,spinInterval,spinResolve,epoch=0,tossTimer,tossResolve;
 const $=id=>document.getElementById(id);
-function reducedMotion(){return window.HBW_MOTION?.reduced()??window.matchMedia('(prefers-reduced-motion: reduce)').matches;}
+function reducedMotion(){return false;}
 let revealTimers=[];
 function reset(mode=selectedMode){revealTimers.forEach(clearTimeout);revealTimers=[];selectedSlot=null;clearDrag();if(!['current','prime'].includes(mode))throw Error('Unknown game mode.');selectedMode=mode;epoch++;clearTimeout(tossTimer);if(tossResolve){tossResolve({cancelled:true});tossResolve=null;}clearTimeout(spinTimer);clearInterval(spinInterval);if(spinResolve){spinResolve({cancelled:true});spinResolve=null;}state={teams:[{money:20,squad:[],soloSkips:0,order:Array(5).fill(null),customized:false,ready:false},{money:20,squad:[],soloSkips:0,order:Array(5).fill(null),customized:false,ready:false}],mode:selectedMode,deck:makeDeck(),revealed:false,revealing:false,phase:'toss-ready',firstBidder:null,lot:0,current:null,bid:0,leader:null,turn:0,passed:[false,false],message:'A 50/50 toss decides who opens the first auction.'};$('results').hidden=true;$('results').innerHTML='';render();}
 function maxBid(t){const team=state.teams[t];return team.squad.length===5?0:team.money;}

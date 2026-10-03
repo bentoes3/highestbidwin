@@ -392,9 +392,8 @@ html.glass-design dialog::backdrop {
   html.glass-design #game .auction { border-radius: 1rem; }
 }
 
-html.glass-design.motion-reduced .float-anim,
-html.glass-design.motion-reduced .hero-cards { animation: none; }
-html.glass-design.motion-reduced .primary { transition: none; }
+
+
 
 /* The sport pages share the chooser's header, left edge and headline baseline. */
 @media (min-width: 761px) {

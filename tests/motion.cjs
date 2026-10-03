@@ -3,57 +3,41 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync('dist/motion.js', 'utf8');
 
-function setup({ saved = null, systemReduced = false, blockedStorage = false, loading = false, legacyMedia = false } = {}) {
+function setup({ saved = null, systemReduced = false, blockedStorage = false } = {}) {
   const stored = new Map(saved ? [['hbw-game-motion', saved]] : []);
-  const classes = new Set(), attributes = {}, buttonAttributes = {}, listeners = {}, mediaListeners = {};
-  const root = { classList: { toggle(name, on) { on ? classes.add(name) : classes.delete(name); } }, setAttribute(name, value) { attributes[name] = value; } };
-  const button = { classList: { toggle() {} }, setAttribute(name, value) { buttonAttributes[name] = value; }, addEventListener(name, fn) { listeners[`button:${name}`] = fn; } };
-  const media = { matches: systemReduced };
-  if (legacyMedia) media.addListener = fn => mediaListeners.change = fn;
-  else media.addEventListener = (name, fn) => mediaListeners[name] = fn;
-  const document = { documentElement: root, readyState: loading ? 'loading' : 'complete', getElementById() { return loading ? null : button; }, addEventListener(name, fn) { listeners[name] = fn; } };
-  const events = [];
+  const classes = new Set(['glass-design', 'motion-reduced']), attributes = {};
+  let mediaReads = 0;
+  const document = {
+    documentElement: { classList: { remove: name => classes.delete(name) }, setAttribute: (name, value) => attributes[name] = value },
+    readyState: 'loading'
+  };
   const window = {
-    matchMedia: () => media,
-    get localStorage() { if (blockedStorage) throw Error('Storage blocked'); return { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) }; },
-    CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } },
-    dispatchEvent(event) { events.push(event); },
-    addEventListener(name, fn) { listeners[name] = fn; }
+    matchMedia() { mediaReads++; return { matches: systemReduced }; },
+    get localStorage() { if (blockedStorage) throw Error('Storage blocked'); return { getItem: key => stored.get(key), removeItem: key => stored.delete(key) }; }
   };
   vm.runInNewContext(source, { window, document });
-  return { window, media, stored, classes, attributes, buttonAttributes, listeners, mediaListeners, events,
-    ready() { loading = false; document.readyState = 'complete'; listeners.DOMContentLoaded(); } };
+  return { window, stored, classes, attributes, mediaReads };
 }
 
-const system = setup({ systemReduced: true, loading: true });
-assert.equal(system.window.HBW_MOTION.reduced(), true);
-assert(system.classes.has('motion-reduced'), 'The OS setting must apply before the page body loads');
-system.ready();
-assert.equal(system.buttonAttributes['aria-pressed'], 'false');
-system.listeners['button:click']();
-assert.equal(system.window.HBW_MOTION.reduced(), false, 'Full effects must explicitly override an OS reduced-motion setting');
-assert.equal(system.stored.get('hbw-game-motion'), 'full');
-assert.equal(system.attributes['data-motion'], 'full');
-assert.equal(system.buttonAttributes['aria-pressed'], 'true');
-system.media.matches = false; system.mediaListeners.change();
-system.media.matches = true; system.mediaListeners.change();
-assert.equal(system.window.HBW_MOTION.reduced(), false, 'An explicit choice must survive OS preference changes');
-assert(system.events.some(event => event.type === 'hbw-motion-change' && event.detail.reduced === false));
-assert.equal(setup({ saved: 'full', systemReduced: true }).window.HBW_MOTION.reduced(), false, 'Full motion persists across pages');
-const reduced = setup({ saved: 'reduced' });
-assert.equal(reduced.window.HBW_MOTION.reduced(), true, 'Reduced motion persists across pages');
-reduced.window.HBW_MOTION.set('system');
-assert.equal(reduced.stored.has('hbw-game-motion'), false);
-assert.equal(reduced.window.HBW_MOTION.reduced(), false);
-reduced.media.matches = true; reduced.mediaListeners.change();
-assert.equal(reduced.window.HBW_MOTION.reduced(), true, 'System mode follows live preference changes');
-reduced.listeners.storage({ key: 'hbw-game-motion', newValue: 'full' });
-assert.equal(reduced.window.HBW_MOTION.reduced(), false, 'A choice in another tab updates the current tab');
-assert.equal(setup({ saved: 'invalid', systemReduced: true }).window.HBW_MOTION.preference(), 'system');
-const restricted = setup({ blockedStorage: true, systemReduced: true, legacyMedia: true });
-restricted.listeners['button:click']();
-assert.equal(restricted.window.HBW_MOTION.reduced(), false, 'Blocked storage must not disable the live control');
-restricted.window.HBW_MOTION.set('system');
-restricted.media.matches = false; restricted.mediaListeners.change();
-assert.equal(restricted.window.HBW_MOTION.reduced(), false);
-console.log('PASS motion: early system preference, explicit full/reduced choice, persistence, live OS changes, cross-tab changes and blocked storage.');
+for (const systemReduced of [false, true]) for (const saved of [null, 'reduced', 'full', 'invalid']) {
+  const page = setup({ systemReduced, saved });
+  assert.equal(page.window.HBW_MOTION.reduced(), false, `OS reduce ${systemReduced}, saved ${saved}: full effects remain enabled`);
+  assert.equal(page.window.HBW_MOTION.preference(), 'full');
+  assert.equal(page.attributes['data-motion'], 'full');
+  assert(!page.classes.has('motion-reduced'), 'Stale suppression must be cleared before the body loads');
+  assert(page.classes.has('glass-design'), 'Clearing motion suppression must preserve the design class');
+  assert(!page.stored.has('hbw-game-motion'), 'The old saved setting must be retired across page loads');
+  assert(Object.isFrozen(page.window.HBW_MOTION), 'The full-motion policy cannot be changed by a stale control');
+  assert.equal(page.window.HBW_MOTION.set, undefined);
+  assert.equal(page.mediaReads, 0, 'Device preference must not control the game effects');
+}
+const restricted = setup({ saved: 'reduced', systemReduced: true, blockedStorage: true });
+assert.equal(restricted.window.HBW_MOTION.reduced(), false, 'Blocked storage cannot suppress effects');
+assert.equal(restricted.attributes['data-motion'], 'full');
+assert(!restricted.classes.has('motion-reduced'));
+for (const page of ['index.html', 'football/index.html', 'basketball/index.html']) {
+  const html = fs.readFileSync('dist/' + page, 'utf8');
+  assert(!html.includes('motion-toggle'), `The retired effects control must be removed from ${page}`);
+  assert(html.includes('<script src="/motion.js"></script>'), `The full policy must run before styles on ${page}`);
+}
+console.log('PASS motion: full effects across OS preferences, retired saved preferences, early class cleanup, blocked storage and all three page headers.');
